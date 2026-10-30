@@ -1,0 +1,126 @@
+@page "/monitors/{Id:guid}"
+@attribute [Authorize]
+
+@using UptimeWatch.Application
+@using UptimeWatch.Domain
+
+@inject MonitorService MonitorService
+@inject ICheckResultRepository Results
+@inject ICurrentUser CurrentUser
+
+<PageTitle>Монитор</PageTitle>
+
+@if (!loaded)
+{
+    <p>Загрузка...</p>
+}
+else if (monitor is null)
+{
+    <h1>Не найдено</h1>
+    <p><a href="monitors">К списку мониторов</a></p>
+}
+else
+{
+    <h1 class="text-break">@monitor.Url</h1>
+    <p>
+        @if (!monitor.Enabled)
+        {
+            <span class="badge bg-secondary">Пауза</span>
+        }
+        else if (monitor.IsDown)
+        {
+            <span class="badge bg-danger">Down</span>
+        }
+        else if (monitor.LastCheckedAt is null)
+        {
+            <span class="badge bg-secondary">Нет данных</span>
+        }
+        else
+        {
+            <span class="badge bg-success">Up</span>
+        }
+        Аптайм: 24ч @FormatUptime(monitor.Uptime.Last24h), 7д @FormatUptime(monitor.Uptime.Last7d), 30д @FormatUptime(monitor.Uptime.Last30d)
+    </p>
+    <p><a href="monitors">К списку мониторов</a></p>
+
+    <h2>Инциденты (последние @IncidentCount)</h2>
+    @if (incidents.Count == 0)
+    {
+        <p>Инцидентов не было.</p>
+    }
+    else
+    {
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Начало (UTC)</th><th>Окончание (UTC)</th><th>Длительность</th><th>Последняя ошибка</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var incident in incidents)
+                {
+                    <tr>
+                        <td>@FormatTime(incident.StartedAt)</td>
+                        <td>@(incident.EndedAt is { } ended ? FormatTime(ended) : "идёт")</td>
+                        <td>@(incident.Duration is { } duration ? duration.ToString(@"hh\:mm\:ss") : "—")</td>
+                        <td class="text-break">@incident.LastError</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2>Последние проверки (@ResultCount)</h2>
+    @if (results.Count == 0)
+    {
+        <p>Проверок ещё не было.</p>
+    }
+    else
+    {
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Время (UTC)</th><th>Результат</th><th>Код</th><th>Время ответа, мс</th><th>Ошибка</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var result in results)
+                {
+                    <tr>
+                        <td>@FormatTime(result.CheckedAt)</td>
+                        <td>@(result.Success ? "OK" : "Сбой")</td>
+                        <td>@(result.StatusCode?.ToString() ?? "—")</td>
+                        <td>@result.ResponseTimeMs</td>
+                        <td class="text-break">@result.Error</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private const int ResultCount = 50;
+    private const int IncidentCount = 20;
+
+    private MonitorStatusDto? monitor;
+    private IReadOnlyList<CheckResult> results = [];
+    private IReadOnlyList<Incident> incidents = [];
+    private bool loaded;
+
+    [Parameter]
+    public Guid Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // GetAsync filters by the signed-in owner: another user's id looks exactly like a missing one.
+        monitor = await MonitorService.GetAsync(Id, CurrentUser.UserId, CancellationToken.None);
+        if (monitor is not null)
+        {
+            results = await Results.GetRecentAsync(monitor.Id, ResultCount, CancellationToken.None);
+            incidents = await Results.GetIncidentsAsync(monitor.Id, IncidentCount, CancellationToken.None);
+        }
+
+        loaded = true;
+    }
+
+    private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
+
+    private static string FormatTime(DateTime value) => value.ToString("yyyy-MM-dd HH:mm:ss");
+}

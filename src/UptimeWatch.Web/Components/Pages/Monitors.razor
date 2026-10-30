@@ -1,8 +1,226 @@
 @page "/monitors"
 @attribute [Authorize]
+@* No prerender: the SignalR connection needs the circuit, and the auth cookie is captured when the circuit initializes. *@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IAsyncDisposable
 
-<PageTitle>Monitors</PageTitle>
+@using Microsoft.AspNetCore.SignalR.Client
+@using UptimeWatch.Application
+@using UptimeWatch.Web.Hubs
 
-<h1>Monitors</h1>
+@inject MonitorService MonitorService
+@inject ICurrentUser CurrentUser
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject ILogger<Monitors> Logger
 
-<p>Your monitors will appear here.</p>
+<PageTitle>Мониторы</PageTitle>
+
+<h1>Мониторы</h1>
+
+<AddMonitorForm OnCreated="OnMonitorCreated" />
+
+@if (loading)
+{
+    <p>Загрузка...</p>
+}
+else if (monitors.Count == 0)
+{
+    <p>Мониторов пока нет. Добавьте первый сайт выше.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-lg-2 g-3">
+        @foreach (var monitor in monitors)
+        {
+            <div class="col" @key="monitor.Id">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title text-break">
+                                <a href="monitors/@monitor.Id">@monitor.Url</a>
+                            </h5>
+                            @if (!monitor.Enabled)
+                            {
+                                <span class="badge bg-secondary">Пауза</span>
+                            }
+                            else if (monitor.IsDown)
+                            {
+                                <span class="badge bg-danger">Down</span>
+                            }
+                            else if (monitor.LastCheckedAt is null)
+                            {
+                                <span class="badge bg-secondary">Нет данных</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Up</span>
+                            }
+                        </div>
+                        <p class="card-text mb-1">
+                            Последняя проверка:
+                            @if (monitor.LastCheckedAt is { } checkedAt)
+                            {
+                                <span>@checkedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC, код @(monitor.LastStatusCode?.ToString() ?? "—"), @monitor.LastResponseTimeMs мс</span>
+                            }
+                            else
+                            {
+                                <span>ещё не выполнялась</span>
+                            }
+                        </p>
+                        <p class="card-text mb-1">
+                            Аптайм: 24ч @FormatUptime(monitor.Uptime.Last24h), 7д @FormatUptime(monitor.Uptime.Last7d), 30д @FormatUptime(monitor.Uptime.Last30d)
+                        </p>
+                        <p class="card-text text-muted">
+                            Интервал @monitor.IntervalSeconds с, ожидаемый код @monitor.ExpectedStatusCode
+                        </p>
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => ToggleAsync(monitor)">
+                            @(monitor.Enabled ? "Пауза" : "Включить")
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" disabled="@busy" @onclick="() => DeleteAsync(monitor)">
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private readonly CancellationTokenSource disposed = new();
+    private List<MonitorStatusDto> monitors = [];
+    private HubConnection? hub;
+    private string? cookieHeader;
+    private bool loading = true;
+    private bool busy;
+
+    protected override void OnInitialized()
+    {
+        // Capture the auth cookie now: IHttpContextAccessor is only reliable while the circuit is being initialized.
+        cookieHeader = HttpContextAccessor.HttpContext?.Request.Headers.Cookie.ToString();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        loading = false;
+        await ConnectAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        // The list is always loaded for the signed-in user; ids sent by the browser are never trusted.
+        monitors = (await MonitorService.ListAsync(CurrentUser.UserId, disposed.Token)).ToList();
+    }
+
+    private async Task ConnectAsync()
+    {
+        var connection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri(MonitorHub.Route), options =>
+            {
+                if (!string.IsNullOrEmpty(cookieHeader))
+                {
+                    options.Headers["Cookie"] = cookieHeader;
+                }
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        connection.On<MonitorStatusDto>(MonitorHub.MonitorUpdatedEvent, status => InvokeAsync(() => ApplyUpdate(status)));
+        // Updates sent while the connection was down are lost, so reload the cards after a reconnect.
+        connection.Reconnected += _ => InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        });
+        hub = connection;
+
+        try
+        {
+            await connection.StartAsync(disposed.Token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The page still works without live updates.
+            Logger.LogWarning(ex, "Could not connect to the monitors hub");
+        }
+    }
+
+    private void ApplyUpdate(MonitorStatusDto status)
+    {
+        // Only known cards are updated, so a late event cannot bring back a monitor that was just deleted.
+        var index = monitors.FindIndex(m => m.Id == status.Id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        // The hub status carries the monitor state at the time of the check; keep the local Enabled flag
+        // when the user paused it in the meantime.
+        monitors[index] = status with { Enabled = monitors[index].Enabled };
+        StateHasChanged();
+    }
+
+    private void OnMonitorCreated(MonitorStatusDto created) => monitors.Add(created);
+
+    private async Task ToggleAsync(MonitorStatusDto monitor)
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        try
+        {
+            var enabled = !monitor.Enabled;
+            if (await MonitorService.SetEnabledAsync(monitor.Id, CurrentUser.UserId, enabled, disposed.Token))
+            {
+                var index = monitors.FindIndex(m => m.Id == monitor.Id);
+                if (index >= 0)
+                {
+                    monitors[index] = monitors[index] with { Enabled = enabled };
+                }
+            }
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync(MonitorStatusDto monitor)
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        try
+        {
+            if (await MonitorService.DeleteAsync(monitor.Id, CurrentUser.UserId, disposed.Token))
+            {
+                monitors.RemoveAll(m => m.Id == monitor.Id);
+            }
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
+
+    public async ValueTask DisposeAsync()
+    {
+        await disposed.CancelAsync();
+        if (hub is not null)
+        {
+            await hub.DisposeAsync();
+        }
+
+        disposed.Dispose();
+    }
+}

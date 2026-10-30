@@ -10,7 +10,8 @@ using UptimeWatch.Web.Auth;
 using UptimeWatch.Web.Background;
 using UptimeWatch.Web.Components;
 using UptimeWatch.Web.Components.Account;
-using UptimeWatch.Web.Notifications;
+using UptimeWatch.Web.Hubs;
+using UptimeWatch.Web.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,22 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
+// SignalR clients cannot follow a redirect to the login page: answer anonymous hub requests with 401 instead.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    var redirectToLogin = options.Events.OnRedirectToLogin;
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Path.StartsWithSegments(MonitorHub.Route))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        return redirectToLogin(context);
+    };
+});
+
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         // There is no e-mail sender in this project, so accounts cannot be confirmed by e-mail.
@@ -59,10 +76,12 @@ builder.Services.AddScoped<MonitorService>();
 builder.Services.AddScoped<CheckProcessor>();
 builder.Services.AddSingleton<CheckRunner>();
 
-// Fallback notification channels. The LAST registration of a service type wins, so later tasks override these
-// by registering their implementation after this block (Telegram when Telegram:BotToken is set, SignalR for the dashboard).
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IMonitorNotifications, SignalRMonitorNotifications>();
+
+// Fallback notification channel. The LAST registration of a service type wins, so a later task overrides it
+// by registering its implementation after this line (Telegram when Telegram:BotToken is set).
 builder.Services.AddSingleton<INotifier, NullNotifier>();
-builder.Services.AddSingleton<IMonitorNotifications, NoOpMonitorNotifications>();
 
 // Background workers; tests switch them off with Scheduler:Enabled=false.
 if (builder.Configuration.GetValue("Scheduler:Enabled", true))
@@ -94,6 +113,8 @@ app.MapRazorComponents<App>()
 
 // Endpoints required by the Identity /Account Razor components (logout, external login, personal data).
 app.MapAdditionalIdentityEndpoints();
+
+app.MapHub<MonitorHub>(MonitorHub.Route);
 
 app.Run();
 
