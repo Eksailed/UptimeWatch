@@ -34,6 +34,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
             b.Property(m => m.OwnerId).IsRequired().HasMaxLength(450);
             b.Property(m => m.Url).IsRequired().HasMaxLength(MonitorLimits.MaxUrlLength);
 
+            // Deleting an account (Identity) deletes its monitors; results and incidents cascade from the monitor.
+            b.HasOne<ApplicationUser>().WithMany().HasForeignKey(m => m.OwnerId).OnDelete(DeleteBehavior.Cascade);
+
             // The open incident is a row of Incidents with EndedAt IS NULL; the repository sets it after loading.
             b.Ignore(m => m.OpenIncident);
 
@@ -46,6 +49,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
             b.ToTable("CheckResults");
             b.HasKey(r => r.Id);
             b.Property(r => r.Id).ValueGeneratedNever();
+            b.Property(r => r.Error).HasMaxLength(MonitorLimits.MaxErrorLength);
 
             b.HasOne<SiteMonitor>().WithMany().HasForeignKey(r => r.MonitorId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(r => new { r.MonitorId, r.CheckedAt });
@@ -57,6 +61,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
             b.ToTable("Incidents");
             b.HasKey(i => i.Id);
             b.Property(i => i.Id).ValueGeneratedNever();
+            b.Property(i => i.LastError).HasMaxLength(MonitorLimits.MaxErrorLength);
 
             b.HasOne<SiteMonitor>().WithMany().HasForeignKey(i => i.MonitorId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(i => new { i.MonitorId, i.StartedAt });

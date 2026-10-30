@@ -163,7 +163,8 @@ namespace UptimeWatch.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Error")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("MonitorId")
                         .HasColumnType("uuid");
@@ -195,7 +196,8 @@ namespace UptimeWatch.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastError")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<Guid>("MonitorId")
                         .HasColumnType("uuid");
@@ -387,6 +389,15 @@ namespace UptimeWatch.Infrastructure.Persistence.Migrations
                     b.HasOne("UptimeWatch.Domain.SiteMonitor", null)
                         .WithMany()
                         .HasForeignKey("MonitorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UptimeWatch.Domain.SiteMonitor", b =>
+                {
+                    b.HasOne("UptimeWatch.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

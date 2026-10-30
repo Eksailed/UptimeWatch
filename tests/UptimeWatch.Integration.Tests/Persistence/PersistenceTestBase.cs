@@ -44,9 +44,9 @@ public abstract class PersistenceTestBase(PostgresFixture postgres) : IAsyncLife
         CheckResult.Create(monitorId, at, true, 200, 50, null);
 
     /// <summary>Adds the monitor, then applies and saves failing checks (each in a new context) until it has an open incident.</summary>
-    protected async Task<SiteMonitor> AddMonitorWithOpenIncident(string error = "boom")
+    protected async Task<SiteMonitor> AddMonitorWithOpenIncident(string error = "boom", string owner = "alice")
     {
-        var monitor = NewMonitor();
+        var monitor = NewMonitor(owner);
         await WithMonitors(r => r.AddAsync(monitor, CancellationToken.None));
 
         for (var i = 0; i < MonitorLimits.FailureThreshold; i++)

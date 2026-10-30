@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
+using UptimeWatch.Infrastructure.Identity;
 using UptimeWatch.Infrastructure.Persistence;
 using Xunit;
 
@@ -24,11 +25,23 @@ public sealed class PostgresFixture : IAsyncLifetime
     public AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConnectionString).Options);
 
-    /// <summary>Removes all application data so tests do not see each other's rows.</summary>
+    /// <summary>User ids that repository and cycle tests use as monitor owners; Monitors.OwnerId has a foreign key to the users.</summary>
+    public static readonly string[] SeededOwners = ["alice", "bob"];
+
+    /// <summary>Removes all application data (including users) so tests do not see each other's rows, then seeds <see cref="SeededOwners"/>.</summary>
     public async Task ResetAsync()
     {
         await using var context = CreateContext();
-        await context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE \"CheckResults\", \"Incidents\", \"Monitors\" CASCADE");
+        await context.Database.ExecuteSqlRawAsync(
+            "TRUNCATE TABLE \"CheckResults\", \"Incidents\", \"Monitors\", \"AspNetUsers\" CASCADE");
+        context.Users.AddRange(SeededOwners.Select(id => new ApplicationUser
+        {
+            Id = id,
+            UserName = id,
+            NormalizedUserName = id.ToUpperInvariant(),
+            SecurityStamp = Guid.NewGuid().ToString("N")
+        }));
+        await context.SaveChangesAsync();
     }
 }
 

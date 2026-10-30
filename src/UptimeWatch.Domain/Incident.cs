@@ -20,10 +20,10 @@ public sealed class Incident
             Id = Guid.NewGuid(),
             MonitorId = monitorId,
             StartedAt = startedAt,
-            LastError = error
+            LastError = ErrorText.Truncate(error)
         };
 
-    internal void UpdateError(string? error) => LastError = error;
+    internal void UpdateError(string? error) => LastError = ErrorText.Truncate(error);
 
     internal void Close(DateTime endedAt) => EndedAt = endedAt;
 }

@@ -29,6 +29,6 @@ public sealed class CheckResult
             Success = success,
             StatusCode = statusCode,
             ResponseTimeMs = responseTimeMs,
-            Error = error
+            Error = ErrorText.Truncate(error)
         };
 }
