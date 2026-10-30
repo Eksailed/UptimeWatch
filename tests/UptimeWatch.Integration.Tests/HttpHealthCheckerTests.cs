@@ -90,6 +90,22 @@ public class HttpHealthCheckerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Check_resolves_redirect_target_host_through_the_guard()
+    {
+        var dns = new FakeDnsResolver().Map("other.test", IPAddress.Loopback);
+        using var checker = new HttpHealthChecker(new HealthCheckerOptions { AllowPrivateAddresses = true }, dns);
+        var target = $"http://other.test:{_site.Port}/ok";
+
+        var result = await checker.CheckAsync(
+            Monitor(_site.Url("/redirect-to?url=" + Uri.EscapeDataString(target))),
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Contains("site.test", dns.ResolvedHosts);
+        Assert.Contains("other.test", dns.ResolvedHosts);
+    }
+
+    [Fact]
     public async Task Check_fails_after_too_many_redirects()
     {
         using var checker = Checker(maxRedirects: 3);
@@ -126,6 +142,19 @@ public class HttpHealthCheckerTests : IAsyncLifetime
 
         Assert.False(result.Success);
         Assert.Contains("Timed out", result.Error);
+    }
+
+    [Fact]
+    public void Constructor_rejects_invalid_options()
+    {
+        var dns = new FakeDnsResolver();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new HttpHealthChecker(new HealthCheckerOptions { Timeout = TimeSpan.Zero }, dns));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new HttpHealthChecker(new HealthCheckerOptions { MaxRedirects = -1 }, dns));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new HttpHealthChecker(new HealthCheckerOptions { MaxResponseBytes = 0 }, dns));
     }
 
     [Fact]

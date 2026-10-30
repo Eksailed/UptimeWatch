@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Authentication;
@@ -23,6 +22,12 @@ public sealed class HttpHealthChecker : IHealthChecker, IDisposable
 
     public HttpHealthChecker(HealthCheckerOptions options, IDnsResolver dns, TimeProvider? time = null)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(dns);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.Timeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfNegative(options.MaxRedirects);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxResponseBytes);
+
         _options = options;
         _dns = dns;
         _time = time ?? TimeProvider.System;
@@ -33,6 +38,7 @@ public sealed class HttpHealthChecker : IHealthChecker, IDisposable
             UseCookies = false,
             AutomaticDecompression = DecompressionMethods.None,
             ConnectTimeout = options.Timeout,
+            MaxResponseDrainSize = 0,
             PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             ConnectCallback = ConnectAsync
         };
@@ -50,16 +56,16 @@ public sealed class HttpHealthChecker : IHealthChecker, IDisposable
         ArgumentNullException.ThrowIfNull(monitor);
 
         var checkedAt = _time.GetUtcNow().UtcDateTime;
-        var stopwatch = Stopwatch.StartNew();
+        var started = _time.GetTimestamp();
         int? statusCode = null;
         string? error;
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(_options.Timeout);
+        using var timeout = new CancellationTokenSource(_options.Timeout, _time);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
 
         try
         {
-            statusCode = await GetFinalStatusAsync(monitor, timeout.Token).ConfigureAwait(false);
+            statusCode = await GetFinalStatusAsync(monitor, linked.Token).ConfigureAwait(false);
             error = statusCode == monitor.ExpectedStatusCode
                 ? null
                 : $"Unexpected status code {statusCode}, expected {monitor.ExpectedStatusCode}.";
@@ -81,8 +87,7 @@ public sealed class HttpHealthChecker : IHealthChecker, IDisposable
             error = Describe(ex);
         }
 
-        stopwatch.Stop();
-        var elapsedMs = (int)Math.Min(stopwatch.ElapsedMilliseconds, int.MaxValue);
+        var elapsedMs = (int)Math.Min((long)_time.GetElapsedTime(started).TotalMilliseconds, int.MaxValue);
         return CheckResult.Create(monitor.Id, checkedAt, error is null, statusCode, elapsedMs, error);
     }
 

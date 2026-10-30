@@ -9,6 +9,9 @@ public sealed class HealthCheckerOptions
 
     public int MaxRedirects { get; init; } = 5;
 
-    /// <summary>Disables the SSRF guard. Exists only for tests; never set it in production code.</summary>
-    public bool AllowPrivateAddresses { get; init; }
+    /// <summary>
+    /// Disables the SSRF guard. Exists only for tests (InternalsVisibleTo). It is deliberately internal so it
+    /// can never be set through configuration binding; it must never be bound from config.
+    /// </summary>
+    internal bool AllowPrivateAddresses { get; init; }
 }

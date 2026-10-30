@@ -66,13 +66,31 @@ public sealed class TestSite : IAsyncDisposable
     }
 }
 
-/// <summary>Maps site.test to 127.0.0.1; every other host does not exist.</summary>
-public sealed class FakeDnsResolver(params IPAddress[] addresses) : IDnsResolver
+/// <summary>
+/// Maps site.test to 127.0.0.1 (or the given addresses) plus any extra host mappings; every other host does
+/// not exist. Records every host it was asked to resolve.
+/// </summary>
+public sealed class FakeDnsResolver : IDnsResolver
 {
-    private readonly IPAddress[] _addresses = addresses.Length == 0 ? [IPAddress.Loopback] : addresses;
+    private readonly Dictionary<string, IPAddress[]> _map = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _calls = new();
 
-    public Task<IPAddress[]> ResolveAsync(string host, CancellationToken ct) =>
-        host == TestSite.HostName
-            ? Task.FromResult(_addresses)
+    public FakeDnsResolver(params IPAddress[] addresses) =>
+        _map[TestSite.HostName] = addresses.Length == 0 ? [IPAddress.Loopback] : addresses;
+
+    public IReadOnlyCollection<string> ResolvedHosts => _calls;
+
+    public FakeDnsResolver Map(string host, params IPAddress[] addresses)
+    {
+        _map[host] = addresses;
+        return this;
+    }
+
+    public Task<IPAddress[]> ResolveAsync(string host, CancellationToken ct)
+    {
+        _calls.Enqueue(host);
+        return _map.TryGetValue(host, out var addresses)
+            ? Task.FromResult(addresses)
             : throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound);
+    }
 }
