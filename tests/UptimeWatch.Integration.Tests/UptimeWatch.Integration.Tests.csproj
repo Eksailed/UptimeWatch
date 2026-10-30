@@ -25,4 +25,8 @@
     <ProjectReference Include="..\..\src\UptimeWatch.Infrastructure\UptimeWatch.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\UptimeWatch.Web\UptimeWatch.Web.csproj" />
+  </ItemGroup>
+
 </Project>

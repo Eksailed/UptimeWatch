@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <UserSecretsId>aspnet-UptimeWatch.Web-01dbb0a7-1161-4168-b9af-b847d76b4752</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UptimeWatch.Application\UptimeWatch.Application.csproj" />
+    <ProjectReference Include="..\UptimeWatch.Infrastructure\UptimeWatch.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
