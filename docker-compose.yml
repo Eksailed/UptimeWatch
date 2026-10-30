@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uptimewatch
+      POSTGRES_DB: uptimewatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Not published to the host: only the web container reaches the database over the compose network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uptimewatch -d uptimewatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: Host=db;Port=5432;Database=uptimewatch;Username=uptimewatch;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+      Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      # Data Protection keys: keep auth cookies valid across container restarts and rebuilds.
+      - dpkeys:/keys
+
+volumes:
+  pgdata:
+  dpkeys:

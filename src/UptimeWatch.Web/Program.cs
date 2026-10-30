@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,16 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default
     throw new InvalidOperationException(
         "Connection string 'ConnectionStrings:Default' is not configured. Set it via the environment variable " +
         "ConnectionStrings__Default, user secrets or appsettings.<Environment>.json.");
+}
+
+// Container deployments persist the Data Protection keys (auth cookies, antiforgery) to a mounted directory so
+// sessions survive a restart. Without DataProtection:KeysPath (local dotnet run, tests) the framework default applies.
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("UptimeWatch")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 }
 
 builder.Services.AddRazorComponents()
@@ -94,14 +105,26 @@ await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
 
+// In the container the app listens on plain HTTP and TLS (if any) is terminated by a reverse proxy, so HSTS and the
+// HTTPS redirect only make sense when the app itself has an HTTPS endpoint or an https port is configured.
+var servesHttps = (app.Configuration["URLS"] ?? string.Empty).Contains("https://", StringComparison.OrdinalIgnoreCase)
+    || !string.IsNullOrEmpty(app.Configuration["HTTPS_PORT"]);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days; see https://aka.ms/aspnetcore-hsts before raising it for production.
-    app.UseHsts();
+    if (servesHttps)
+    {
+        // The default HSTS value is 30 days; see https://aka.ms/aspnetcore-hsts before raising it for production.
+        app.UseHsts();
+    }
 }
 
-app.UseHttpsRedirection();
+if (servesHttps || app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();

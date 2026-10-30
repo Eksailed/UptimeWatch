@@ -1,0 +1,29 @@
+# Build output and IDE files
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.idea/
+*.user
+
+# Repository metadata and tooling
+.git/
+.github/
+.superpowers/
+.config/
+
+# Not needed to build the image
+tests/
+docs/
+*.md
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.Development.json
+**/secrets.json

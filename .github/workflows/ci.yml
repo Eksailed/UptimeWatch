@@ -22,3 +22,11 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build -c Release
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t uptimewatch:ci .
