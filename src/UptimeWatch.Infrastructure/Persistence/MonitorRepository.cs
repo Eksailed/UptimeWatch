@@ -90,7 +90,8 @@ public sealed class MonitorRepository(AppDbContext db) : IMonitorRepository
                 .SetProperty(x => x.IntervalSeconds, m.IntervalSeconds)
                 .SetProperty(x => x.ExpectedStatusCode, m.ExpectedStatusCode)
                 .SetProperty(x => x.Enabled, m.Enabled)
-                .SetProperty(x => x.NextCheckAt, m.NextCheckAt), ct);
+                // An already enabled monitor may hold a lease in NextCheckAt; only enabling a disabled one reschedules it.
+                .SetProperty(x => x.NextCheckAt, x => x.Enabled ? x.NextCheckAt : m.NextCheckAt), ct);
     }
 
     public async Task<IReadOnlyList<SiteMonitor>> ClaimDueAsync(DateTime now, int limit, TimeSpan lease, CancellationToken ct)
@@ -157,17 +158,32 @@ public sealed class MonitorRepository(AppDbContext db) : IMonitorRepository
         var entries = new List<EntityEntry> { db.CheckResults.Add(result) };
         try
         {
-            if (closedIncident is not null)
+            // A false here means a stale copy lost against the stored incident state: nothing is persisted.
+            if (closedIncident is not null && !await TryWriteIncidentAsync(closedIncident, closing: true, entries, ct))
             {
-                await UpsertIncidentAsync(closedIncident, entries, ct);
+                await transaction.RollbackAsync(ct);
+                return false;
             }
 
-            if (monitor.OpenIncident is { } open && open.Id != closedIncident?.Id)
+            if (monitor.OpenIncident is { } open
+                && open.Id != closedIncident?.Id
+                && !await TryWriteIncidentAsync(open, closing: false, entries, ct))
             {
-                await UpsertIncidentAsync(open, entries, ct);
+                await transaction.RollbackAsync(ct);
+                return false;
             }
 
-            await db.SaveChangesAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Another open incident already exists for this monitor (stale copy).
+                await transaction.RollbackAsync(ct);
+                return false;
+            }
+
             await transaction.CommitAsync(ct);
             return true;
         }
@@ -180,16 +196,30 @@ public sealed class MonitorRepository(AppDbContext db) : IMonitorRepository
         }
     }
 
-    private async Task UpsertIncidentAsync(Incident incident, List<EntityEntry> entries, CancellationToken ct)
+    /// <summary>
+    /// Updates only a still-open incident row (EndedAt IS NULL) so a stale copy can neither re-open nor re-close one.
+    /// Inserts the incident only if no row with this id exists. Returns false on a conflict.
+    /// </summary>
+    private async Task<bool> TryWriteIncidentAsync(Incident incident, bool closing, List<EntityEntry> entries, CancellationToken ct)
     {
-        var updated = await db.Incidents.Where(i => i.Id == incident.Id)
-            .ExecuteUpdateAsync(s => s
+        var openRows = db.Incidents.Where(i => i.Id == incident.Id && i.EndedAt == null);
+        var updated = closing
+            ? await openRows.ExecuteUpdateAsync(s => s
                 .SetProperty(i => i.EndedAt, incident.EndedAt)
-                .SetProperty(i => i.LastError, incident.LastError), ct);
-        if (updated == 0)
+                .SetProperty(i => i.LastError, incident.LastError), ct)
+            : await openRows.ExecuteUpdateAsync(s => s.SetProperty(i => i.LastError, incident.LastError), ct);
+        if (updated > 0)
         {
-            entries.Add(db.Incidents.Add(incident));
+            return true;
         }
+
+        if (await db.Incidents.AnyAsync(i => i.Id == incident.Id, ct))
+        {
+            return false;
+        }
+
+        entries.Add(db.Incidents.Add(incident));
+        return true;
     }
 
     private async Task AttachOpenIncidentsAsync(IReadOnlyCollection<SiteMonitor> monitors, CancellationToken ct)

@@ -74,9 +74,10 @@ public sealed class MonitorRepositoryTests(PostgresFixture postgres) : Persisten
         }
 
         var batches = await Task.WhenAll(
-            Enumerable.Range(0, 4).Select(_ => WithMonitors(r => r.ClaimDueAsync(T, 100, TimeSpan.FromMinutes(1), Ct))));
+            Enumerable.Range(0, 4).Select(_ => WithMonitors(r => r.ClaimDueAsync(T, 20, TimeSpan.FromMinutes(1), Ct))));
 
         var ids = batches.SelectMany(b => b.Select(m => m.Id)).ToList();
+        Assert.All(batches, b => Assert.True(b.Count <= 20));
         Assert.Equal(total, ids.Count);
         Assert.Equal(total, ids.Distinct().Count());
     }
@@ -152,7 +153,7 @@ public sealed class MonitorRepositoryTests(PostgresFixture postgres) : Persisten
 
         var result = Failure(loaded.Id, T.AddMinutes(10), "second");
         loaded.ApplyResult(result, T.AddMinutes(10));
-        await WithMonitors(r => r.SaveCheckAsync(loaded, result, null, Ct));
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(loaded, result, null, Ct)));
 
         var incidents = await WithResults(r => r.GetIncidentsAsync(monitor.Id, 10, Ct));
         var incident = Assert.Single(incidents);
@@ -191,14 +192,14 @@ public sealed class MonitorRepositoryTests(PostgresFixture postgres) : Persisten
         var ok = Success(loaded.Id, T.AddMinutes(30));
         var openBefore = loaded.OpenIncident;
         loaded.ApplyResult(ok, T.AddMinutes(30));
-        await WithMonitors(r => r.SaveCheckAsync(loaded, ok, openBefore, Ct));
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(loaded, ok, openBefore, Ct)));
 
         for (var i = 0; i < MonitorLimits.FailureThreshold; i++)
         {
             var at = T.AddMinutes(40 + i);
             var fail = Failure(loaded.Id, at);
             loaded.ApplyResult(fail, at);
-            await WithMonitors(r => r.SaveCheckAsync(loaded, fail, null, Ct));
+            Assert.True(await WithMonitors(r => r.SaveCheckAsync(loaded, fail, null, Ct)));
         }
 
         var incidents = await WithResults(r => r.GetIncidentsAsync(monitor.Id, 10, Ct));
@@ -231,7 +232,7 @@ public sealed class MonitorRepositoryTests(PostgresFixture postgres) : Persisten
         var other = NewMonitor("bob", "https://other.example.com");
         await WithMonitors(r => r.AddAsync(other, Ct));
         var otherResult = Success(other.Id, T);
-        await WithMonitors(r => r.SaveCheckAsync(other, otherResult, null, Ct));
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(other, otherResult, null, Ct)));
 
         var deleted = await WithMonitors(r => r.DeleteAsync(monitor.Id, "alice", Ct));
 
@@ -264,7 +265,7 @@ public sealed class MonitorRepositoryTests(PostgresFixture postgres) : Persisten
         var copy = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
         var more = Failure(monitor.Id, T.AddMinutes(20));
         monitor.ApplyResult(more, T.AddMinutes(20));
-        await WithMonitors(r => r.SaveCheckAsync(monitor, more, null, Ct));
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(monitor, more, null, Ct)));
 
         copy.SetEnabled(false, T.AddHours(1));
         await WithMonitors(r => r.UpdateAsync(copy, Ct));
@@ -273,5 +274,127 @@ public sealed class MonitorRepositoryTests(PostgresFixture postgres) : Persisten
         Assert.False(reloaded.Enabled);
         Assert.Equal(MonitorLimits.FailureThreshold + 1, reloaded.ConsecutiveFailures);
         Assert.NotNull(reloaded.OpenIncident);
+    }
+
+    [Fact]
+    public async Task SaveCheck_stale_copy_cannot_reopen_or_update_a_closed_incident()
+    {
+        var monitor = await AddMonitorWithOpenIncident();
+        var stale = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        var fresh = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+
+        var recoveredAt = T.AddMinutes(30);
+        var ok = Success(fresh.Id, recoveredAt);
+        var openBefore = fresh.OpenIncident;
+        fresh.ApplyResult(ok, recoveredAt);
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(fresh, ok, openBefore, Ct)));
+
+        var staleFailure = Failure(stale.Id, T.AddMinutes(31), "late");
+        stale.ApplyResult(staleFailure, T.AddMinutes(31));
+        var saved = await WithMonitors(r => r.SaveCheckAsync(stale, staleFailure, null, Ct));
+
+        Assert.False(saved);
+        var incident = Assert.Single(await WithResults(r => r.GetIncidentsAsync(monitor.Id, 10, Ct)));
+        Assert.Equal(recoveredAt, incident.EndedAt);
+        Assert.NotEqual("late", incident.LastError);
+        var reloaded = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        Assert.Equal(0, reloaded.ConsecutiveFailures);
+        Assert.Null(reloaded.OpenIncident);
+        var results = await WithResults(r => r.GetRecentAsync(monitor.Id, 20, Ct));
+        Assert.DoesNotContain(results, r => r.Id == staleFailure.Id);
+        Assert.Equal(MonitorLimits.FailureThreshold + 1, results.Count);
+    }
+
+    [Fact]
+    public async Task SaveCheck_second_close_of_the_same_incident_returns_false_and_keeps_EndedAt()
+    {
+        var monitor = await AddMonitorWithOpenIncident();
+        var first = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        var second = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+
+        var firstAt = T.AddMinutes(30);
+        var firstOk = Success(first.Id, firstAt);
+        var firstOpen = first.OpenIncident;
+        first.ApplyResult(firstOk, firstAt);
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(first, firstOk, firstOpen, Ct)));
+
+        var secondAt = T.AddMinutes(45);
+        var secondOk = Success(second.Id, secondAt);
+        var secondOpen = second.OpenIncident;
+        second.ApplyResult(secondOk, secondAt);
+        var saved = await WithMonitors(r => r.SaveCheckAsync(second, secondOk, secondOpen, Ct));
+
+        Assert.False(saved);
+        var incident = Assert.Single(await WithResults(r => r.GetIncidentsAsync(monitor.Id, 10, Ct)));
+        Assert.Equal(firstAt, incident.EndedAt);
+        var results = await WithResults(r => r.GetRecentAsync(monitor.Id, 20, Ct));
+        Assert.DoesNotContain(results, r => r.Id == secondOk.Id);
+        var reloaded = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        Assert.Equal(firstAt.AddSeconds(60), reloaded.NextCheckAt);
+    }
+
+    [Fact]
+    public async Task SaveCheck_stale_copy_cannot_open_a_second_incident()
+    {
+        var monitor = NewMonitor();
+        await WithMonitors(r => r.AddAsync(monitor, Ct));
+        for (var i = 0; i < MonitorLimits.FailureThreshold - 1; i++)
+        {
+            var at = T.AddMinutes(i + 1);
+            var fail = Failure(monitor.Id, at);
+            monitor.ApplyResult(fail, at);
+            Assert.True(await WithMonitors(r => r.SaveCheckAsync(monitor, fail, null, Ct)));
+        }
+
+        // Two workers hold copies with 2 failures; both see the 3rd failure and try to open an incident.
+        var a = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        var b = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        var resultA = Failure(a.Id, T.AddMinutes(10));
+        var resultB = Failure(b.Id, T.AddMinutes(10));
+        Assert.Equal(IncidentTransition.Opened, a.ApplyResult(resultA, T.AddMinutes(10)));
+        Assert.Equal(IncidentTransition.Opened, b.ApplyResult(resultB, T.AddMinutes(10)));
+
+        Assert.True(await WithMonitors(r => r.SaveCheckAsync(a, resultA, null, Ct)));
+        Assert.False(await WithMonitors(r => r.SaveCheckAsync(b, resultB, null, Ct)));
+
+        var incident = Assert.Single(await WithResults(r => r.GetIncidentsAsync(monitor.Id, 10, Ct)));
+        Assert.Equal(a.OpenIncident!.Id, incident.Id);
+        var results = await WithResults(r => r.GetRecentAsync(monitor.Id, 20, Ct));
+        Assert.DoesNotContain(results, r => r.Id == resultB.Id);
+    }
+
+    [Fact]
+    public async Task Update_keeps_the_leased_NextCheckAt_of_an_enabled_monitor()
+    {
+        var monitor = NewMonitor(now: T.AddMinutes(-1));
+        await WithMonitors(r => r.AddAsync(monitor, Ct));
+        var copy = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        var claimed = (await WithMonitors(r => r.ClaimDueAsync(T, 10, TimeSpan.FromMinutes(1), Ct))).Single();
+        Assert.Equal(T.AddMinutes(1), claimed.NextCheckAt);
+
+        copy.SetEnabled(true, T.AddHours(5));
+        await WithMonitors(r => r.UpdateAsync(copy, Ct));
+
+        var reloaded = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        Assert.True(reloaded.Enabled);
+        Assert.Equal(T.AddMinutes(1), reloaded.NextCheckAt);
+    }
+
+    [Fact]
+    public async Task Update_sets_NextCheckAt_when_a_disabled_monitor_is_enabled()
+    {
+        var monitor = NewMonitor();
+        await WithMonitors(r => r.AddAsync(monitor, Ct));
+        var disabled = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        disabled.SetEnabled(false, T);
+        await WithMonitors(r => r.UpdateAsync(disabled, Ct));
+
+        var enabling = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        enabling.SetEnabled(true, T.AddHours(2));
+        await WithMonitors(r => r.UpdateAsync(enabling, Ct));
+
+        var reloaded = (await WithMonitors(r => r.GetAsync(monitor.Id, "alice", Ct)))!;
+        Assert.True(reloaded.Enabled);
+        Assert.Equal(T.AddHours(2), reloaded.NextCheckAt);
     }
 }
