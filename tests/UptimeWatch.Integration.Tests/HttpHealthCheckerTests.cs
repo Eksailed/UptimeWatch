@@ -228,6 +228,17 @@ public class HttpHealthCheckerTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Default_options_are_10_seconds_256_kb_and_5_redirects()
+    {
+        // DependencyInjection registers HealthCheckerOptions as-is (TryAddSingleton), so these are the production defaults.
+        var options = new HealthCheckerOptions();
+
+        Assert.Equal(TimeSpan.FromSeconds(10), options.Timeout);
+        Assert.Equal(256 * 1024, options.MaxResponseBytes);
+        Assert.Equal(5, options.MaxRedirects);
+    }
+
+    [Fact]
     public async Task Check_is_blocked_when_any_resolved_address_is_private()
     {
         using var checker = new HttpHealthChecker(
