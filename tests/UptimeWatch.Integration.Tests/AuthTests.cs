@@ -68,6 +68,36 @@ public sealed class AuthTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Anonymous_request_to_removed_register_confirmation_page_returns_not_found()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/Account/RegisterConfirmation?email=someone@example.com");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Repeated_wrong_passwords_lock_the_account_out_even_for_the_right_password()
+    {
+        // Goes through the real login form (an HTTP-level test) because lockoutOnFailure is set by Login.razor itself.
+        var email = await TestUsers.CreateAsync(_factory);
+
+        // Identity default: 5 failed attempts lock the account.
+        for (var i = 0; i < 5; i++)
+        {
+            var (wrong, _) = await TestUsers.SubmitLoginFormAsync(_factory, email, "Wrong-Passw0rd!");
+            Assert.Equal(i < 4 ? HttpStatusCode.OK : HttpStatusCode.Found, wrong.StatusCode);
+        }
+
+        var (response, cookie) = await TestUsers.SubmitLoginFormAsync(_factory, email, TestUsers.ValidPassword);
+
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("/Account/Lockout", response.Headers.Location?.OriginalString);
+        Assert.DoesNotContain("Identity.Application", cookie);
+    }
+
+    [Fact]
     public async Task Duplicate_email_registration_is_rejected()
     {
         var email = $"{Guid.NewGuid():N}@example.com";

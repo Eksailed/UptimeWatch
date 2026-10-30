@@ -26,10 +26,29 @@ public static class TestUsers
             userId = user.Id;
         }
 
-        return (userId, await LoginAsync(factory, email));
+        var (response, cookie) = await SubmitLoginFormAsync(factory, email, Password);
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("Identity.Application", cookie);
+        return (userId, cookie);
     }
 
-    private static async Task<string> LoginAsync(WebAppFactory factory, string email)
+    /// <summary>Creates a user with the shared test password and returns its e-mail (user name).</summary>
+    public static async Task<string> CreateAsync(WebAppFactory factory)
+    {
+        var email = $"{Guid.NewGuid():N}@example.com";
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var created = await users.CreateAsync(new ApplicationUser { UserName = email, Email = email }, Password);
+        Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Code)));
+        return email;
+    }
+
+    /// <summary>The shared password of the users created by this class.</summary>
+    public const string ValidPassword = Password;
+
+    /// <summary>Submits the real login form; returns the raw response and the collected cookies as a header value.</summary>
+    public static async Task<(HttpResponseMessage Response, string Cookie)> SubmitLoginFormAsync(
+        WebAppFactory factory, string email, string password)
     {
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -50,17 +69,14 @@ public static class TestUsers
                 ["__RequestVerificationToken"] = HiddenValue(html, "__RequestVerificationToken"),
                 ["_handler"] = HiddenValue(html, "_handler"),
                 ["Input.Email"] = email,
-                ["Input.Password"] = Password,
+                ["Input.Password"] = password,
                 ["Input.RememberMe"] = "false"
             })
         };
         post.Headers.Add("Cookie", Header(cookies));
         var response = await client.SendAsync(post);
         Collect(response, cookies);
-
-        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
-        Assert.Contains(cookies.Keys, name => name.Contains("Identity.Application"));
-        return Header(cookies);
+        return (response, Header(cookies));
     }
 
     private static string HiddenValue(string html, string name)
