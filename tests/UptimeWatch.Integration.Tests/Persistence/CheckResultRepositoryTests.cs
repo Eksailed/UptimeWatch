@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using UptimeWatch.Infrastructure.Persistence;
 using UptimeWatch.Domain;
 using UptimeWatch.Integration.Tests.Support;
 
@@ -54,6 +56,26 @@ public sealed class CheckResultRepositoryTests(PostgresFixture postgres) : Persi
         var uptime = await WithResults(r => r.GetUptimePercentAsync(id, T.AddHours(-1), Ct));
 
         Assert.Null(uptime);
+    }
+
+    [Fact]
+    public async Task Uptime_is_one_command_without_ef_warnings()
+    {
+        var id = await AddMonitorAsync();
+        await SaveAsync(Success(id, T.AddMinutes(-1)), Failure(id, T.AddMinutes(-2)));
+        var log = new List<string>();
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(Postgres.ConnectionString)
+            .LogTo(log.Add, LogLevel.Information)
+            .Options;
+
+        await using (var db = new AppDbContext(options))
+        {
+            Assert.Equal(50.0, await new CheckResultRepository(db).GetUptimePercentAsync(id, T.AddHours(-1), Ct));
+        }
+
+        Assert.Single(log, line => line.Contains("Executed DbCommand"));
+        Assert.DoesNotContain(log, line => line.Contains("warn:"));
     }
 
     [Fact]

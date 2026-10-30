@@ -14,7 +14,7 @@ public sealed class CheckResultRepository(AppDbContext db) : ICheckResultReposit
             .Where(r => r.MonitorId == monitorId && r.CheckedAt >= since)
             .GroupBy(_ => 1)
             .Select(g => new { Total = g.Count(), Successes = g.Count(r => r.Success) })
-            .FirstOrDefaultAsync(ct);
+            .SingleOrDefaultAsync(ct); // one constant group at most: no rows in the window means no group at all
 
         return stats is null || stats.Total == 0 ? null : stats.Successes * 100.0 / stats.Total;
     }
