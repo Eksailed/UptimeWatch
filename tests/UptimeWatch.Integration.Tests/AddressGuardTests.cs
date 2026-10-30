@@ -22,6 +22,9 @@ public class AddressGuardTests
     [InlineData("169.254.169.254")]
     [InlineData("::1")]
     [InlineData("fe80::1")]
+    [InlineData("64:ff9b:1::1")]
+    [InlineData("2002:808:808::1")]
+    [InlineData("100::1")]
     public async Task Throws_when_host_resolves_to_non_public(string address)
     {
         var dns = new StubDns(address);

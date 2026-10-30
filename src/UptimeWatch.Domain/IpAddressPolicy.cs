@@ -55,6 +55,21 @@ public static class IpAddressPolicy
             return false; // fc00::/7 unique local
         }
 
+        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xFF && b[3] == 0x9B && b[4] == 0x00 && b[5] == 0x01)
+        {
+            return false; // 64:ff9b:1::/48 local-use NAT64
+        }
+
+        if (b[0] == 0x20 && b[1] == 0x02)
+        {
+            return false; // 2002::/16 6to4 (embeds an IPv4 address; blocked outright instead of judging the embedded one)
+        }
+
+        if (b[0] == 0x01 && IsZero(b, 1, 8))
+        {
+            return false; // 100::/64 discard-only prefix
+        }
+
         // Prefixes that embed an IPv4 address: judge by the embedded address.
         // ::/96 (IPv4-compatible) and 64:ff9b::/96 (NAT64)
         var embedsV4 = IsZero(b, 0, 12)
