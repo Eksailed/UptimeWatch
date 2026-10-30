@@ -27,6 +27,10 @@
 {
     <p>Загрузка...</p>
 }
+else if (loadFailed)
+{
+    @* The error above is all there is to show: the list is unknown, not empty. *@
+}
 else if (monitors.Count == 0)
 {
     <p>Мониторов пока нет. Добавьте первый сайт выше.</p>
@@ -97,6 +101,7 @@ else
     private IDisposable? subscription;
     private string? pageError;
     private bool loading = true;
+    private bool loadFailed;
     private bool busy;
     private bool isDisposed;
 
@@ -109,6 +114,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         pageError = await RunAsync(LoadAsync, "Не удалось загрузить мониторы.");
+        loadFailed = pageError is not null;
         loading = false;
         foreach (var update in pendingUpdates)
         {

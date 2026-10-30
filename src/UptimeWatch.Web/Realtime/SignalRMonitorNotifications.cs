@@ -7,35 +7,38 @@ namespace UptimeWatch.Web.Realtime;
 /// <summary>
 /// Sends monitor status updates to the dashboards of the monitor's owner only: through the SignalR hub group
 /// (browsers/other clients) and through the in-process broadcaster (Blazor circuits of this app).
-/// One failing path never prevents the other.
+/// The two paths run concurrently and one failing path never prevents the other.
 /// </summary>
 public sealed class SignalRMonitorNotifications(IHubContext<MonitorHub> hub, MonitorUpdatesBroadcaster broadcaster) : IMonitorNotifications
 {
     public async Task PublishAsync(string ownerId, MonitorStatusDto status, CancellationToken ct)
     {
-        List<Exception>? errors = null;
+        // Task.WhenAll rethrows only the first failure of an awaited task, so every path reports into one list.
+        var errors = new List<Exception>();
 
-        try
-        {
-            await hub.Clients.Group(MonitorHub.OwnerGroup(ownerId)).SendAsync(MonitorHub.MonitorUpdatedEvent, status, ct);
-        }
-        catch (Exception ex)
-        {
-            (errors ??= []).Add(ex);
-        }
+        await Task.WhenAll(
+            Guarded(() => hub.Clients.Group(MonitorHub.OwnerGroup(ownerId)).SendAsync(MonitorHub.MonitorUpdatedEvent, status, ct), errors),
+            Guarded(() => broadcaster.PublishAsync(ownerId, status), errors));
 
-        try
-        {
-            await broadcaster.PublishAsync(ownerId, status);
-        }
-        catch (Exception ex)
-        {
-            (errors ??= []).Add(ex);
-        }
-
-        if (errors is not null)
+        if (errors.Count > 0)
         {
             throw new AggregateException(errors);
+        }
+    }
+
+    // Also catches exceptions thrown synchronously while the call is being started.
+    private static async Task Guarded(Func<Task> publish, List<Exception> errors)
+    {
+        try
+        {
+            await publish();
+        }
+        catch (Exception ex)
+        {
+            lock (errors)
+            {
+                errors.Add(ex);
+            }
         }
     }
 }

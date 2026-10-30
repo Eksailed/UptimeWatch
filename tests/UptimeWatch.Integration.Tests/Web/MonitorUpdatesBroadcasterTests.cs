@@ -81,6 +81,26 @@ public sealed class MonitorUpdatesBroadcasterTests
     }
 
     [Fact]
+    public async Task Notifications_reach_the_broadcaster_while_the_hub_send_is_still_in_flight()
+    {
+        var delivered = 0;
+        var hubSend = new TaskCompletionSource();
+        var proxy = Substitute.For<IClientProxy>();
+        proxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>()).Returns(hubSend.Task);
+        var hub = Substitute.For<IHubContext<MonitorHub>>();
+        hub.Clients.Group("owner-owner-a").Returns(proxy);
+        using var subscription = _broadcaster.Subscribe("owner-a", _ => { delivered++; return Task.CompletedTask; });
+        var notifications = new SignalRMonitorNotifications(hub, _broadcaster);
+
+        var publish = notifications.PublishAsync("owner-a", Status(), CancellationToken.None);
+
+        Assert.False(publish.IsCompleted);
+        Assert.Equal(1, delivered);
+        hubSend.SetResult();
+        await publish;
+    }
+
+    [Fact]
     public async Task Notifications_still_reach_the_hub_group_when_a_subscriber_fails()
     {
         var proxy = Substitute.For<IClientProxy>();
