@@ -16,14 +16,32 @@ public sealed class TestSite : IAsyncDisposable
     public const string HostName = "site.test";
 
     private readonly WebApplication _app;
+    private readonly State _state;
 
-    private TestSite(WebApplication app, int port)
+    private TestSite(WebApplication app, int port, State state)
     {
         _app = app;
         Port = port;
+        _state = state;
+    }
+
+    private sealed class State
+    {
+        public int RequestCount;
+        public int ControlledStatus = 200;
     }
 
     public int Port { get; }
+
+    /// <summary>Total number of HTTP requests the site has received.</summary>
+    public int RequestCount => Volatile.Read(ref _state.RequestCount);
+
+    /// <summary>Status code returned by <c>/controlled</c>; can be changed while the site runs.</summary>
+    public int ControlledStatus
+    {
+        get => Volatile.Read(ref _state.ControlledStatus);
+        set => Volatile.Write(ref _state.ControlledStatus, value);
+    }
 
     /// <summary>URL with a non-loopback host name; use together with <see cref="FakeDnsResolver"/>.</summary>
     public string Url(string path) => $"http://{HostName}:{Port}{path}";
@@ -34,7 +52,14 @@ public sealed class TestSite : IAsyncDisposable
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         var app = builder.Build();
+        var state = new State();
 
+        app.Use(async (ctx, next) =>
+        {
+            Interlocked.Increment(ref state.RequestCount);
+            await next();
+        });
+        app.MapGet("/controlled", () => Results.StatusCode(Volatile.Read(ref state.ControlledStatus)));
         app.MapGet("/ok", () => Results.Text("ok"));
         app.MapGet("/status/{code:int}", (int code) => Results.StatusCode(code));
         app.MapGet("/slow", async (HttpContext ctx) =>
@@ -56,7 +81,7 @@ public sealed class TestSite : IAsyncDisposable
 
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
-        return new TestSite(app, new Uri(address).Port);
+        return new TestSite(app, new Uri(address).Port, state);
     }
 
     public async ValueTask DisposeAsync()
