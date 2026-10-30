@@ -60,7 +60,7 @@ else
                     <tr>
                         <td>@FormatTime(incident.StartedAt)</td>
                         <td>@(incident.EndedAt is { } ended ? FormatTime(ended) : "идёт")</td>
-                        <td>@(incident.Duration is { } duration ? duration.ToString(@"hh\:mm\:ss") : "—")</td>
+                        <td>@(incident.Duration is { } duration ? DurationFormatter.Format(duration) : "—")</td>
                         <td class="text-break">@incident.LastError</td>
                     </tr>
                 }

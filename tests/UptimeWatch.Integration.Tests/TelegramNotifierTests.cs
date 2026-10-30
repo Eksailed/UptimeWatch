@@ -128,18 +128,4 @@ public sealed class TelegramNotifierTests
         Assert.EndsWith("…", text);
         Assert.False(char.IsHighSurrogate(text[^2]));
     }
-
-    [Theory]
-    [InlineData(0, "меньше секунды")]
-    [InlineData(45, "45 с")]
-    [InlineData(60, "1 мин")]
-    [InlineData(3725, "1 ч 2 мин")]
-    [InlineData(90061, "1 д 1 ч")]
-    [InlineData(3630, "1 ч 30 с")]
-    [InlineData(86430, "1 д 30 с")] // 1 d 0 h 0 min 30 s: zero units are skipped, not shown as "1 д 0 ч"
-    [InlineData(86700, "1 д 5 мин")]
-    public void Duration_is_formatted_in_russian_with_two_largest_units(int seconds, string expected)
-    {
-        Assert.Equal(expected, TelegramNotifier.FormatDuration(TimeSpan.FromSeconds(seconds)));
-    }
 }

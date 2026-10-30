@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using UptimeWatch.Application;
 using UptimeWatch.Domain;
@@ -40,44 +39,9 @@ public sealed class TelegramNotifier(ITelegramSender sender, IUserProfileStore p
             return;
         }
 
-        var downtime = incident.Duration is { } d ? FormatDuration(d) : "неизвестно";
+        var downtime = incident.Duration is { } d ? DurationFormatter.Format(d) : "неизвестно";
         var text = BuildText($"🟢 Сайт снова доступен: {monitor.Url}", "\nВремя недоступности: ", downtime);
         await sender.SendAsync(chatId, text, ct);
-    }
-
-    /// <summary>
-    /// Russian, at most the two largest non-zero units, e.g. "1 ч 5 мин", "45 с". Zero units in between are skipped,
-    /// so 1 day 0 h 0 min 30 s reads "1 д 30 с" (each number carries its own unit, so this is unambiguous).
-    /// </summary>
-    internal static string FormatDuration(TimeSpan duration)
-    {
-        if (duration < TimeSpan.Zero)
-        {
-            duration = TimeSpan.Zero;
-        }
-
-        var parts = new List<string>(4);
-        if (duration.Days > 0)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{duration.Days} д"));
-        }
-
-        if (duration.Hours > 0)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{duration.Hours} ч"));
-        }
-
-        if (duration.Minutes > 0)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{duration.Minutes} мин"));
-        }
-
-        if (duration.Seconds > 0)
-        {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{duration.Seconds} с"));
-        }
-
-        return parts.Count == 0 ? "меньше секунды" : string.Join(' ', parts.Take(2));
     }
 
     /// <summary>Header (with the URL) is kept; the variable part is truncated so the whole text fits Telegram's limit.</summary>
