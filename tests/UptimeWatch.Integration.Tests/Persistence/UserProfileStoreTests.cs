@@ -101,4 +101,30 @@ public sealed class UserProfileStoreTests(PostgresFixture postgres) : Persistenc
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             InScope(provider, async s => { await s.SetTelegramChatIdAsync("missing", "1", Ct); return 0; }));
     }
+
+    [Fact]
+    public async Task Concurrent_change_of_the_user_row_is_retried_once()
+    {
+        await using var provider = BuildProvider();
+        var userId = await CreateUserAsync(provider);
+
+        await using var scope = provider.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        // Load (and track) the user in this scope, then change the row from another scope: the tracked copy is stale.
+        Assert.NotNull(await users.FindByIdAsync(userId));
+        await using (var other = provider.CreateAsyncScope())
+        {
+            var otherUsers = other.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = (await otherUsers.FindByIdAsync(userId))!;
+            user.PhoneNumber = "+10000000000";
+            Assert.True((await otherUsers.UpdateAsync(user)).Succeeded);
+        }
+
+        await scope.ServiceProvider.GetRequiredService<IUserProfileStore>().SetTelegramChatIdAsync(userId, "555", Ct);
+
+        Assert.Equal("555", await InScope(provider, s => s.GetTelegramChatIdAsync(userId, Ct)));
+        await using var check = provider.CreateAsyncScope();
+        var stored = (await check.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>().FindByIdAsync(userId))!;
+        Assert.Equal("+10000000000", stored.PhoneNumber);
+    }
 }

@@ -8,7 +8,7 @@
 @using UptimeWatch.Infrastructure.Notifications
 
 @inject IUserProfileStore Profiles
-@inject ITelegramSender TelegramSender
+@inject TelegramTestMessageService TestMessages
 @inject TelegramOptions TelegramOptions
 @inject ICurrentUser CurrentUser
 @inject ILogger<Profile> Logger
@@ -55,8 +55,6 @@ else
 }
 
 @code {
-    private const string TestText = "Тестовое сообщение от UptimeWatch: уведомления настроены.";
-
     private readonly CancellationTokenSource cancellation = new();
     private string? chatId;
     private string? error;
@@ -120,7 +118,13 @@ else
         {
             try
             {
-                await TelegramSender.SendAsync(normalized, TestText, cancellation.Token);
+                var retryAfter = await TestMessages.SendTestAsync(CurrentUser.UserId, normalized, cancellation.Token);
+                if (retryAfter is { } wait)
+                {
+                    failure = $"Повторите через {Math.Ceiling(wait.TotalSeconds):0} с.";
+                    return;
+                }
+
                 info = "Тестовое сообщение отправлено.";
             }
             catch (TelegramApiException ex)

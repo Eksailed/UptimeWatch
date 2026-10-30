@@ -48,7 +48,8 @@ public sealed class TelegramSender : ITelegramSender, IDisposable
         var http = new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
         {
             BaseAddress = ApiBaseAddress,
-            Timeout = TimeSpan.FromSeconds(15)
+            Timeout = TimeSpan.FromSeconds(15),
+            MaxResponseContentBufferSize = 64 * 1024
         };
         try
         {
@@ -69,6 +70,8 @@ public sealed class TelegramSender : ITelegramSender, IDisposable
         }
     }
 
+    // Note for tracing: HttpClient instrumentation (OpenTelemetry / Activity "url.full" tag) would record the request URL,
+    // i.e. the bot token path. If tracing is ever added, exclude or redact this client's requests.
     public async Task SendAsync(string chatId, string text, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(chatId);
@@ -90,13 +93,16 @@ public sealed class TelegramSender : ITelegramSender, IDisposable
                     status);
             }
         }
+        // The original exception is deliberately NOT attached as InnerException: loggers print the whole chain,
+        // and underlying messages can carry the request URL (which contains the bot token). Only safe fields are kept.
         catch (HttpRequestException ex)
         {
-            throw new TelegramApiException($"Telegram request failed: {ex.GetType().Name}.", null, ex);
+            var cause = ex.InnerException is { } inner ? $", cause {inner.GetType().Name}" : string.Empty;
+            throw new TelegramApiException($"Telegram request failed: {ex.GetType().Name} ({ex.HttpRequestError}{cause}).");
         }
-        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new TelegramApiException("Telegram request timed out.", null, ex);
+            throw new TelegramApiException("Telegram request timed out.");
         }
     }
 

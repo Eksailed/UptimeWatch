@@ -74,6 +74,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<MonitorService>();
 builder.Services.AddScoped<CheckProcessor>();
 builder.Services.AddSingleton<CheckRunner>();
+builder.Services.AddSingleton<TelegramTestMessageService>();
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<MonitorUpdatesBroadcaster>();

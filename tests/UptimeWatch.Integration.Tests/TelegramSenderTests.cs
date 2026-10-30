@@ -82,28 +82,42 @@ public sealed class TelegramSenderTests
             (_, _) => Json(HttpStatusCode.Unauthorized, $$"""{"ok":false,"description":"Unauthorized {{Token}} bot{{Token}}/sendMessage"}"""),
             (_, _) => Json(HttpStatusCode.NotFound, """{"ok":false,"description":"Not Found"}"""),
             // Network failure whose message carries the request URL.
-            (request, _) => throw new HttpRequestException($"Failed to call {request.RequestUri}")
+            (request, _) => throw new HttpRequestException(
+                $"Failed to call {request.RequestUri}", new InvalidOperationException($"inner {request.RequestUri} {Token}"))
         };
 
         foreach (var respond in failures)
         {
             var ex = await Assert.ThrowsAsync<TelegramApiException>(() => CreateSender(new StubHandler(respond)).SendAsync("1", "x", Ct));
 
-            foreach (var text in new[] { ex.Message, ex.ToString().Split("--->", 2)[0] })
-            {
-                Assert.DoesNotContain(Token, text);
-                Assert.DoesNotContain("AAE-test_token", text);
-                Assert.DoesNotContain("api.telegram.org", text);
-            }
+            AssertNoLeak(ex);
+        }
+    }
+
+    /// <summary>Checks the full ex.ToString() (what loggers print) and every message in the InnerException chain.</summary>
+    private static void AssertNoLeak(Exception exception)
+    {
+        var texts = new List<string> { exception.ToString() };
+        for (var e = exception; e is not null; e = e.InnerException)
+        {
+            texts.Add(e.Message);
+        }
+
+        foreach (var text in texts)
+        {
+            Assert.DoesNotContain(Token, text);
+            Assert.DoesNotContain("AAE-test_token", text);
+            Assert.DoesNotContain("api.telegram.org", text);
         }
     }
 
     [Fact]
     public async Task Timeout_is_reported_as_telegram_exception_but_caller_cancellation_is_not()
     {
-        var timeoutHandler = new StubHandler((_, _) => throw new TaskCanceledException("timeout with " + Token));
+        var timeoutHandler = new StubHandler((_, _) => throw new TaskCanceledException("timeout with " + Token, new TimeoutException("api.telegram.org " + Token)));
         var timeout = await Assert.ThrowsAsync<TelegramApiException>(() => CreateSender(timeoutHandler).SendAsync("1", "x", Ct));
-        Assert.DoesNotContain(Token, timeout.Message);
+        AssertNoLeak(timeout);
+        Assert.Null(timeout.InnerException);
 
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
