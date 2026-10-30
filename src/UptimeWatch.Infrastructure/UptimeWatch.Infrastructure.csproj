@@ -4,5 +4,8 @@
     <ProjectReference Include="..\UptimeWatch.Application\UptimeWatch.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.22" />
+  </ItemGroup>
 
 </Project>
