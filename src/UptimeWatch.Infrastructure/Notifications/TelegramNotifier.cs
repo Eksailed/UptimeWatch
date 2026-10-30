@@ -45,7 +45,10 @@ public sealed class TelegramNotifier(ITelegramSender sender, IUserProfileStore p
         await sender.SendAsync(chatId, text, ct);
     }
 
-    /// <summary>Russian, at most the two largest units, e.g. "1 ч 5 мин", "45 с".</summary>
+    /// <summary>
+    /// Russian, at most the two largest non-zero units, e.g. "1 ч 5 мин", "45 с". Zero units in between are skipped,
+    /// so 1 day 0 h 0 min 30 s reads "1 д 30 с" (each number carries its own unit, so this is unambiguous).
+    /// </summary>
     internal static string FormatDuration(TimeSpan duration)
     {
         if (duration < TimeSpan.Zero)

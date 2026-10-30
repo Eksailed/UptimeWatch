@@ -72,6 +72,21 @@ public sealed class TelegramNotifierTests
         await _sender.Received(1).SendAsync("12345", text, Ct);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public async Task Down_message_says_the_error_is_unknown_when_there_is_no_last_error(string? error)
+    {
+        HasChatId("12345");
+        var (monitor, incident) = Incident("https://example.com", error);
+
+        await _notifier.NotifyDownAsync(monitor, incident, Ct);
+
+        var text = (string)_sender.ReceivedCalls().Single().GetArguments()[1]!;
+        Assert.Contains("https://example.com", text);
+        Assert.EndsWith("Ошибка: неизвестна", text);
+    }
+
     [Fact]
     public async Task Recovered_message_contains_url_and_downtime_duration()
     {
@@ -120,6 +135,9 @@ public sealed class TelegramNotifierTests
     [InlineData(60, "1 мин")]
     [InlineData(3725, "1 ч 2 мин")]
     [InlineData(90061, "1 д 1 ч")]
+    [InlineData(3630, "1 ч 30 с")]
+    [InlineData(86430, "1 д 30 с")] // 1 d 0 h 0 min 30 s: zero units are skipped, not shown as "1 д 0 ч"
+    [InlineData(86700, "1 д 5 мин")]
     public void Duration_is_formatted_in_russian_with_two_largest_units(int seconds, string expected)
     {
         Assert.Equal(expected, TelegramNotifier.FormatDuration(TimeSpan.FromSeconds(seconds)));
