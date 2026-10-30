@@ -1,0 +1,17 @@
+﻿@page "/"
+
+<PageTitle>UptimeWatch</PageTitle>
+
+<h1>UptimeWatch</h1>
+
+<p>Watch your websites and get notified the moment they go down.</p>
+
+<AuthorizeView>
+    <Authorized>
+        <a class="btn btn-primary" href="monitors">Go to your monitors</a>
+    </Authorized>
+    <NotAuthorized>
+        <a class="btn btn-primary" href="Account/Register">Create an account</a>
+        <a class="btn btn-outline-secondary" href="Account/Login">Log in</a>
+    </NotAuthorized>
+</AuthorizeView>

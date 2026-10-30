@@ -1,0 +1,282 @@
+@page "/monitors"
+@attribute [Authorize]
+@* No prerender: the page loads data and subscribes to updates, which must happen once, in the circuit. *@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+
+@using UptimeWatch.Application
+@using UptimeWatch.Web.Realtime
+
+@inject MonitorService MonitorService
+@inject ICurrentUser CurrentUser
+@inject MonitorUpdatesBroadcaster Updates
+@inject ILogger<Monitors> Logger
+
+<PageTitle>Мониторы</PageTitle>
+
+<h1>Мониторы</h1>
+
+<AddMonitorForm Busy="busy" OnSubmit="AddAsync" />
+
+@if (pageError is not null)
+{
+    <div class="alert alert-danger" role="alert">@pageError</div>
+}
+
+@if (loading)
+{
+    <p>Загрузка...</p>
+}
+else if (loadFailed)
+{
+    @* The error above is all there is to show: the list is unknown, not empty. *@
+}
+else if (monitors.Count == 0)
+{
+    <p>Мониторов пока нет. Добавьте первый сайт выше.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-lg-2 g-3">
+        @foreach (var monitor in monitors)
+        {
+            <div class="col" @key="monitor.Id">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title text-break">
+                                <a href="monitors/@monitor.Id">@monitor.Url</a>
+                            </h5>
+                            @if (!monitor.Enabled)
+                            {
+                                <span class="badge bg-secondary">Пауза</span>
+                            }
+                            else if (monitor.IsDown)
+                            {
+                                <span class="badge bg-danger">Down</span>
+                            }
+                            else if (monitor.LastCheckedAt is null)
+                            {
+                                <span class="badge bg-secondary">Нет данных</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Up</span>
+                            }
+                        </div>
+                        <p class="card-text mb-1">
+                            Последняя проверка:
+                            @if (monitor.LastCheckedAt is { } checkedAt)
+                            {
+                                <span>@checkedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC, код @(monitor.LastStatusCode?.ToString() ?? "—"), @monitor.LastResponseTimeMs мс</span>
+                            }
+                            else
+                            {
+                                <span>ещё не выполнялась</span>
+                            }
+                        </p>
+                        <p class="card-text mb-1">
+                            Аптайм: 24ч @FormatUptime(monitor.Uptime.Last24h), 7д @FormatUptime(monitor.Uptime.Last7d), 30д @FormatUptime(monitor.Uptime.Last30d)
+                        </p>
+                        <p class="card-text text-muted">
+                            Интервал @monitor.IntervalSeconds с, ожидаемый код @monitor.ExpectedStatusCode
+                        </p>
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => ToggleAsync(monitor)">
+                            @(monitor.Enabled ? "Пауза" : "Включить")
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" disabled="@busy" @onclick="() => DeleteAsync(monitor)">
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private readonly CancellationTokenSource cancellation = new();
+    private readonly List<MonitorStatusDto> pendingUpdates = [];
+    private List<MonitorStatusDto> monitors = [];
+    private IDisposable? subscription;
+    private string? pageError;
+    private bool loading = true;
+    private bool loadFailed;
+    private bool busy;
+    private bool isDisposed;
+
+    protected override void OnInitialized()
+    {
+        // Subscribe before loading, so an update published while the list is loading is not lost.
+        subscription = Updates.Subscribe(CurrentUser.UserId, OnUpdateAsync);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        pageError = await RunAsync(LoadAsync, "Не удалось загрузить мониторы.");
+        loadFailed = pageError is not null;
+        loading = false;
+        foreach (var update in pendingUpdates)
+        {
+            ApplyUpdate(update);
+        }
+
+        pendingUpdates.Clear();
+    }
+
+    private async Task LoadAsync()
+    {
+        // The list is always loaded for the signed-in user; ids sent by the browser are never trusted.
+        monitors = (await MonitorService.ListAsync(CurrentUser.UserId, cancellation.Token)).ToList();
+    }
+
+    private Task OnUpdateAsync(MonitorStatusDto status)
+    {
+        if (isDisposed)
+        {
+            return Task.CompletedTask;
+        }
+
+        return InvokeAsync(() =>
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            if (loading)
+            {
+                pendingUpdates.Add(status);
+                return;
+            }
+
+            ApplyUpdate(status);
+            StateHasChanged();
+        });
+    }
+
+    private void ApplyUpdate(MonitorStatusDto status)
+    {
+        // Only cards that are already on the page are updated: new monitors are added by this page itself, and a
+        // late event cannot bring back a monitor that was just deleted. A monitor created in another tab shows up on reload.
+        var index = monitors.FindIndex(m => m.Id == status.Id);
+        if (index < 0 || monitors[index].LastCheckedAt > status.LastCheckedAt)
+        {
+            return;
+        }
+
+        // The event carries the monitor state at the time of the check; keep the Enabled flag set on this page.
+        monitors[index] = status with { Enabled = monitors[index].Enabled };
+    }
+
+    private async Task<string?> AddAsync(string url, int intervalSeconds, int expectedStatusCode)
+    {
+        string? validationError = null;
+        var failure = await RunAsync(async () =>
+        {
+            var result = await MonitorService.CreateAsync(
+                CurrentUser.UserId, url, intervalSeconds, expectedStatusCode, cancellation.Token);
+            if (result.Value is { } created)
+            {
+                pageError = null;
+                InsertSorted(created);
+            }
+            else
+            {
+                validationError = result.Error;
+            }
+        }, "Не удалось добавить монитор.");
+
+        return validationError ?? failure;
+    }
+
+    private async Task ToggleAsync(MonitorStatusDto monitor)
+    {
+        pageError = await RunAsync(async () =>
+        {
+            var enabled = !monitor.Enabled;
+            if (await MonitorService.SetEnabledAsync(monitor.Id, CurrentUser.UserId, enabled, cancellation.Token))
+            {
+                var index = monitors.FindIndex(m => m.Id == monitor.Id);
+                if (index >= 0)
+                {
+                    monitors[index] = monitors[index] with { Enabled = enabled };
+                }
+            }
+        }, "Не удалось изменить состояние монитора.");
+    }
+
+    private async Task DeleteAsync(MonitorStatusDto monitor)
+    {
+        pageError = await RunAsync(async () =>
+        {
+            if (await MonitorService.DeleteAsync(monitor.Id, CurrentUser.UserId, cancellation.Token))
+            {
+                monitors.RemoveAll(m => m.Id == monitor.Id);
+            }
+        }, "Не удалось удалить монитор.");
+    }
+
+    /// <summary>
+    /// The only way to touch the data from this page: one operation at a time, because the circuit shares one DbContext.
+    /// Returns null on success, otherwise the text to show; exceptions never escape into the circuit.
+    /// </summary>
+    private async Task<string?> RunAsync(Func<Task> action, string failureText)
+    {
+        if (busy)
+        {
+            return "Предыдущая операция ещё выполняется.";
+        }
+
+        busy = true;
+        Refresh();
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            if (isDisposed && ex is OperationCanceledException)
+            {
+                return null;
+            }
+
+            Logger.LogError(ex, "{Operation} failed", failureText);
+            return failureText;
+        }
+        finally
+        {
+            busy = false;
+            Refresh();
+        }
+    }
+
+    // AddMonitorForm reports back through a plain delegate, which does not re-render this page by itself.
+    private void Refresh()
+    {
+        if (!isDisposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    // Same order as MonitorService.ListAsync (URL, then id).
+    private void InsertSorted(MonitorStatusDto created)
+    {
+        monitors.RemoveAll(m => m.Id == created.Id);
+        var index = monitors.FindIndex(m =>
+            string.CompareOrdinal(m.Url, created.Url) is var byUrl && (byUrl > 0 || (byUrl == 0 && m.Id.CompareTo(created.Id) > 0)));
+        monitors.Insert(index < 0 ? monitors.Count : index, created);
+    }
+
+    private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
+
+    public void Dispose()
+    {
+        isDisposed = true;
+        subscription?.Dispose();
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

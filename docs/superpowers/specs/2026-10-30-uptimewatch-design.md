@@ -48,7 +48,7 @@ UptimeWatch/
 
 ### Сущности
 
-- `Monitor`: URL, интервал, ожидаемый код ответа, владелец, статус, `NextCheckAt`.
+- `SiteMonitor`: URL, интервал, ожидаемый код ответа, владелец, статус, `NextCheckAt`.
 - `CheckResult`: время, успех, код ответа, время ответа (мс).
 - `Incident`: начало и конец простоя.
 - Пользователь: ASP.NET Core Identity; у монитора есть `OwnerId`.
