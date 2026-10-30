@@ -13,7 +13,7 @@ public sealed class BackgroundServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 30, 12, 0, 0, TimeSpan.Zero);
 
-    private readonly FakeTimeProvider _time = new(Now);
+    private readonly TimerCountingTimeProvider _time = new(Now);
     private readonly IMonitorRepository _monitors = Substitute.For<IMonitorRepository>();
     private readonly ICheckResultRepository _results = Substitute.For<ICheckResultRepository>();
     private readonly ServiceProvider _provider;
@@ -32,6 +32,32 @@ public sealed class BackgroundServiceTests
 
     private RetentionCleaner Cleaner() =>
         new(_provider.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<RetentionCleaner>.Instance);
+
+    /// <summary>
+    /// A fake clock that counts the timers created through it. Every <c>Task.Delay(..., TimeProvider)</c> of a background
+    /// service creates exactly one timer, so the count tells when the service is really waiting on the clock again.
+    /// </summary>
+    private sealed class TimerCountingTimeProvider(DateTimeOffset start) : FakeTimeProvider(start)
+    {
+        private int _timersCreated;
+
+        public int TimersCreated => Volatile.Read(ref _timersCreated);
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = base.CreateTimer(callback, state, dueTime, period);
+            Interlocked.Increment(ref _timersCreated);
+            return timer;
+        }
+    }
+
+    // Advancing the clock before the service has registered its next delay would be lost: the delay would then be
+    // measured from the already advanced time. So wait until the expected number of timers exists, then advance.
+    private async Task AdvanceAsync(TimeSpan by, int timersCreated)
+    {
+        await Eventually(() => _time.TimersCreated >= timersCreated);
+        _time.Advance(by);
+    }
 
     private static async Task Eventually(Func<bool> condition)
     {
@@ -54,7 +80,7 @@ public sealed class BackgroundServiceTests
         await scheduler.StartAsync(CancellationToken.None);
 
         await Eventually(() => ClaimCalls == 1);
-        _time.Advance(TimeSpan.FromSeconds(4));
+        await AdvanceAsync(TimeSpan.FromSeconds(4), timersCreated: 1);
         await Task.Delay(100);
         Assert.Equal(1, ClaimCalls);
 
@@ -72,7 +98,7 @@ public sealed class BackgroundServiceTests
         await scheduler.StartAsync(CancellationToken.None);
 
         await Eventually(() => ClaimCalls == 1);
-        _time.Advance(MonitorScheduler.Pause);
+        await AdvanceAsync(MonitorScheduler.Pause, timersCreated: 1);
         await Eventually(() => ClaimCalls == 2);
 
         await scheduler.StopAsync(CancellationToken.None);
@@ -99,12 +125,13 @@ public sealed class BackgroundServiceTests
         await Task.Delay(100);
         Assert.Equal(0, DeleteCalls);
 
-        _time.Advance(RetentionCleaner.StartupDelay);
+        await AdvanceAsync(RetentionCleaner.StartupDelay, timersCreated: 1);
         await Eventually(() => DeleteCalls == 1);
         await _results.Received(1).DeleteOlderThanAsync(
             (Now + RetentionCleaner.StartupDelay).UtcDateTime - TimeSpan.FromDays(30), Arg.Any<CancellationToken>());
 
-        _time.Advance(TimeSpan.FromHours(23));
+        // The daily delay is registered only after the cleanup call has returned.
+        await AdvanceAsync(TimeSpan.FromHours(23), timersCreated: 2);
         await Task.Delay(100);
         Assert.Equal(1, DeleteCalls);
 
@@ -121,9 +148,9 @@ public sealed class BackgroundServiceTests
         var cleaner = Cleaner();
         await cleaner.StartAsync(CancellationToken.None);
 
-        _time.Advance(RetentionCleaner.StartupDelay);
+        await AdvanceAsync(RetentionCleaner.StartupDelay, timersCreated: 1);
         await Eventually(() => DeleteCalls == 1);
-        _time.Advance(RetentionCleaner.Interval);
+        await AdvanceAsync(RetentionCleaner.Interval, timersCreated: 2);
         await Eventually(() => DeleteCalls == 2);
 
         await cleaner.StopAsync(CancellationToken.None);
