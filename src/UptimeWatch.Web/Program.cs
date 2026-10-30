@@ -91,7 +91,8 @@ builder.Services.AddSingleton<MonitorUpdatesBroadcaster>();
 builder.Services.AddSingleton<IMonitorNotifications, SignalRMonitorNotifications>();
 
 // Background workers; tests switch them off with Scheduler:Enabled=false.
-if (builder.Configuration.GetValue("Scheduler:Enabled", true))
+var schedulerEnabled = builder.Configuration.GetValue("Scheduler:Enabled", true);
+if (schedulerEnabled)
 {
     builder.Services.AddHostedService<MonitorScheduler>();
     builder.Services.AddHostedService<RetentionCleaner>();
@@ -99,15 +100,25 @@ if (builder.Configuration.GetValue("Scheduler:Enabled", true))
 
 var app = builder.Build();
 
+if (!schedulerEnabled)
+{
+    app.Logger.LogWarning("Scheduler:Enabled is false: monitors are NOT checked and old check results are NOT cleaned up.");
+}
+
 await using (var scope = app.Services.CreateAsyncScope())
 {
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
 
 // In the container the app listens on plain HTTP and TLS (if any) is terminated by a reverse proxy, so HSTS and the
-// HTTPS redirect only make sense when the app itself has an HTTPS endpoint or an https port is configured.
+// HTTPS redirect only make sense when the app itself has an HTTPS endpoint (URLS, Kestrel:Endpoints:*:Url) or an
+// https port is configured (HTTPS_PORT/HTTPS_PORTS, i.e. ASPNETCORE_HTTPS_PORT(S)). Behind a TLS-terminating proxy
+// the proxy has to send the HSTS header itself.
 var servesHttps = (app.Configuration["URLS"] ?? string.Empty).Contains("https://", StringComparison.OrdinalIgnoreCase)
-    || !string.IsNullOrEmpty(app.Configuration["HTTPS_PORT"]);
+    || !string.IsNullOrEmpty(app.Configuration["HTTPS_PORT"])
+    || !string.IsNullOrEmpty(app.Configuration["HTTPS_PORTS"])
+    || app.Configuration.GetSection("Kestrel:Endpoints").GetChildren()
+        .Any(endpoint => endpoint["Url"]?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) == true);
 
 if (!app.Environment.IsDevelopment())
 {

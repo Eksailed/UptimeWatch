@@ -22,7 +22,9 @@ services:
       db:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: Host=db;Port=5432;Database=uptimewatch;Username=uptimewatch;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+      # No Password= here: Npgsql takes the password from PGPASSWORD, so characters such as ';' cannot break the connection string.
+      ConnectionStrings__Default: Host=db;Port=5432;Database=uptimewatch;Username=uptimewatch
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
       Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:-}
     ports:
       - "8080:8080"
