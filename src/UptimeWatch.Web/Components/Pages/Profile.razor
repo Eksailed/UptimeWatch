@@ -1,0 +1,185 @@
+@page "/profile"
+@attribute [Authorize]
+@* No prerender: the page loads the profile once, in the circuit. *@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+
+@using UptimeWatch.Application
+@using UptimeWatch.Infrastructure.Notifications
+
+@inject IUserProfileStore Profiles
+@inject ITelegramSender TelegramSender
+@inject TelegramOptions TelegramOptions
+@inject ICurrentUser CurrentUser
+@inject ILogger<Profile> Logger
+
+<PageTitle>Профиль</PageTitle>
+
+<h1>Профиль</h1>
+
+<h2 class="h4">Уведомления в Telegram</h2>
+
+@if (!TelegramOptions.IsConfigured)
+{
+    <div class="alert alert-warning" role="alert">Telegram не настроен на сервере: уведомления не отправляются.</div>
+}
+
+<p class="text-muted">
+    Напишите своему боту команду /start и укажите здесь chat_id: число (например, 123456789 или -1001234567890)
+    или @@имя_канала. Когда сайт упадёт или восстановится, бот пришлёт сообщение в этот чат.
+</p>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+@if (info is not null)
+{
+    <div class="alert alert-success" role="status">@info</div>
+}
+
+@if (loading)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <div class="mb-3" style="max-width: 28rem;">
+        <label class="form-label" for="chat-id">chat_id</label>
+        <input id="chat-id" class="form-control" maxlength="@TelegramChatId.MaxLength" autocomplete="off"
+               @bind="chatId" @bind:event="oninput" disabled="@busy" />
+    </div>
+    <button class="btn btn-primary" disabled="@busy" @onclick="SaveAsync">Сохранить</button>
+    <button class="btn btn-outline-secondary" disabled="@busy" @onclick="SendTestAsync">Отправить тест</button>
+}
+
+@code {
+    private const string TestText = "Тестовое сообщение от UptimeWatch: уведомления настроены.";
+
+    private readonly CancellationTokenSource cancellation = new();
+    private string? chatId;
+    private string? error;
+    private string? info;
+    private bool loading = true;
+    private bool busy;
+    private bool isDisposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        error = await RunAsync(async () =>
+        {
+            // Always the signed-in user's own profile; no id comes from the browser.
+            chatId = await Profiles.GetTelegramChatIdAsync(CurrentUser.UserId, cancellation.Token);
+        }, "Не удалось загрузить профиль.");
+        loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        info = null;
+        var normalized = TelegramChatId.Normalize(chatId);
+        if (!TelegramChatId.TryValidate(normalized, out var validationError))
+        {
+            error = validationError;
+            return;
+        }
+
+        error = await RunAsync(async () =>
+        {
+            await Profiles.SetTelegramChatIdAsync(CurrentUser.UserId, normalized, cancellation.Token);
+            chatId = normalized;
+            info = normalized is null ? "chat_id удалён." : "Сохранено.";
+        }, "Не удалось сохранить профиль.");
+    }
+
+    private async Task SendTestAsync()
+    {
+        info = null;
+        if (!TelegramOptions.IsConfigured)
+        {
+            error = "Telegram не настроен на сервере.";
+            return;
+        }
+
+        var normalized = TelegramChatId.Normalize(chatId);
+        if (normalized is null)
+        {
+            error = "Укажите chat_id.";
+            return;
+        }
+
+        if (!TelegramChatId.TryValidate(normalized, out var validationError))
+        {
+            error = validationError;
+            return;
+        }
+
+        string? failure = null;
+        error = await RunAsync(async () =>
+        {
+            try
+            {
+                await TelegramSender.SendAsync(normalized, TestText, cancellation.Token);
+                info = "Тестовое сообщение отправлено.";
+            }
+            catch (TelegramApiException ex)
+            {
+                // The exception text never contains the token, but the page shows only the status code anyway.
+                Logger.LogWarning(ex, "Telegram test message failed");
+                failure = ex.StatusCode is { } status
+                    ? $"Не удалось отправить тестовое сообщение (HTTP {status}). Проверьте chat_id и что вы написали боту /start."
+                    : "Не удалось отправить тестовое сообщение: Telegram недоступен.";
+            }
+        }, "Не удалось отправить тестовое сообщение.");
+
+        error ??= failure;
+    }
+
+    /// <summary>One operation at a time (the circuit shares one DbContext). Returns null on success, otherwise the text to show.</summary>
+    private async Task<string?> RunAsync(Func<Task> action, string failureText)
+    {
+        if (busy)
+        {
+            return "Предыдущая операция ещё выполняется.";
+        }
+
+        busy = true;
+        Refresh();
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            if (isDisposed && ex is OperationCanceledException)
+            {
+                return null;
+            }
+
+            Logger.LogError(ex, "{Operation} failed", failureText);
+            return failureText;
+        }
+        finally
+        {
+            busy = false;
+            Refresh();
+        }
+    }
+
+    private void Refresh()
+    {
+        if (!isDisposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        isDisposed = true;
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

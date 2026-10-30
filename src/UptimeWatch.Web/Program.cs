@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using UptimeWatch.Application;
 using UptimeWatch.Infrastructure;
 using UptimeWatch.Infrastructure.Identity;
-using UptimeWatch.Infrastructure.Notifications;
 using UptimeWatch.Infrastructure.Persistence;
 using UptimeWatch.Web.Auth;
 using UptimeWatch.Web.Background;
@@ -70,7 +69,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
-// Infrastructure (EF Core/PostgreSQL, repositories, HTTP health checker, TimeProvider) and application services.
+// Infrastructure (EF Core/PostgreSQL, repositories, HTTP health checker, TimeProvider, notification channel) and application services.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<MonitorService>();
 builder.Services.AddScoped<CheckProcessor>();
@@ -79,10 +78,6 @@ builder.Services.AddSingleton<CheckRunner>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<MonitorUpdatesBroadcaster>();
 builder.Services.AddSingleton<IMonitorNotifications, SignalRMonitorNotifications>();
-
-// Fallback notification channel. The LAST registration of a service type wins, so a later task overrides it
-// by registering its implementation after this line (Telegram when Telegram:BotToken is set).
-builder.Services.AddSingleton<INotifier, NullNotifier>();
 
 // Background workers; tests switch them off with Scheduler:Enabled=false.
 if (builder.Configuration.GetValue("Scheduler:Enabled", true))

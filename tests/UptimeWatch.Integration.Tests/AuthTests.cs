@@ -35,6 +35,17 @@ public sealed class AuthTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Anonymous_request_to_profile_page_redirects_to_login()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/profile");
+
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Contains("/Account/Login", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
     public async Task Registered_user_can_sign_in_with_password()
     {
         var email = $"{Guid.NewGuid():N}@example.com";
