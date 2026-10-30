@@ -1,24 +1,27 @@
 @page "/monitors"
 @attribute [Authorize]
-@* No prerender: the SignalR connection needs the circuit, and the auth cookie is captured when the circuit initializes. *@
+@* No prerender: the page loads data and subscribes to updates, which must happen once, in the circuit. *@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
-@implements IAsyncDisposable
+@implements IDisposable
 
-@using Microsoft.AspNetCore.SignalR.Client
 @using UptimeWatch.Application
-@using UptimeWatch.Web.Hubs
+@using UptimeWatch.Web.Realtime
 
 @inject MonitorService MonitorService
 @inject ICurrentUser CurrentUser
-@inject IHttpContextAccessor HttpContextAccessor
-@inject NavigationManager Navigation
+@inject MonitorUpdatesBroadcaster Updates
 @inject ILogger<Monitors> Logger
 
 <PageTitle>Мониторы</PageTitle>
 
 <h1>Мониторы</h1>
 
-<AddMonitorForm OnCreated="OnMonitorCreated" />
+<AddMonitorForm Busy="busy" OnSubmit="AddAsync" />
+
+@if (pageError is not null)
+{
+    <div class="alert alert-danger" role="alert">@pageError</div>
+}
 
 @if (loading)
 {
@@ -88,94 +91,105 @@ else
 }
 
 @code {
-    private readonly CancellationTokenSource disposed = new();
+    private readonly CancellationTokenSource cancellation = new();
+    private readonly List<MonitorStatusDto> pendingUpdates = [];
     private List<MonitorStatusDto> monitors = [];
-    private HubConnection? hub;
-    private string? cookieHeader;
+    private IDisposable? subscription;
+    private string? pageError;
     private bool loading = true;
     private bool busy;
+    private bool isDisposed;
 
     protected override void OnInitialized()
     {
-        // Capture the auth cookie now: IHttpContextAccessor is only reliable while the circuit is being initialized.
-        cookieHeader = HttpContextAccessor.HttpContext?.Request.Headers.Cookie.ToString();
+        // Subscribe before loading, so an update published while the list is loading is not lost.
+        subscription = Updates.Subscribe(CurrentUser.UserId, OnUpdateAsync);
     }
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync();
+        pageError = await RunAsync(LoadAsync, "Не удалось загрузить мониторы.");
         loading = false;
-        await ConnectAsync();
+        foreach (var update in pendingUpdates)
+        {
+            ApplyUpdate(update);
+        }
+
+        pendingUpdates.Clear();
     }
 
     private async Task LoadAsync()
     {
         // The list is always loaded for the signed-in user; ids sent by the browser are never trusted.
-        monitors = (await MonitorService.ListAsync(CurrentUser.UserId, disposed.Token)).ToList();
+        monitors = (await MonitorService.ListAsync(CurrentUser.UserId, cancellation.Token)).ToList();
     }
 
-    private async Task ConnectAsync()
+    private Task OnUpdateAsync(MonitorStatusDto status)
     {
-        var connection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri(MonitorHub.Route), options =>
-            {
-                if (!string.IsNullOrEmpty(cookieHeader))
-                {
-                    options.Headers["Cookie"] = cookieHeader;
-                }
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        connection.On<MonitorStatusDto>(MonitorHub.MonitorUpdatedEvent, status => InvokeAsync(() => ApplyUpdate(status)));
-        // Updates sent while the connection was down are lost, so reload the cards after a reconnect.
-        connection.Reconnected += _ => InvokeAsync(async () =>
+        if (isDisposed)
         {
-            await LoadAsync();
+            return Task.CompletedTask;
+        }
+
+        return InvokeAsync(() =>
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            if (loading)
+            {
+                pendingUpdates.Add(status);
+                return;
+            }
+
+            ApplyUpdate(status);
             StateHasChanged();
         });
-        hub = connection;
-
-        try
-        {
-            await connection.StartAsync(disposed.Token);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // The page still works without live updates.
-            Logger.LogWarning(ex, "Could not connect to the monitors hub");
-        }
     }
 
     private void ApplyUpdate(MonitorStatusDto status)
     {
-        // Only known cards are updated, so a late event cannot bring back a monitor that was just deleted.
+        // Only cards that are already on the page are updated: new monitors are added by this page itself, and a
+        // late event cannot bring back a monitor that was just deleted. A monitor created in another tab shows up on reload.
         var index = monitors.FindIndex(m => m.Id == status.Id);
-        if (index < 0)
+        if (index < 0 || monitors[index].LastCheckedAt > status.LastCheckedAt)
         {
             return;
         }
 
-        // The hub status carries the monitor state at the time of the check; keep the local Enabled flag
-        // when the user paused it in the meantime.
+        // The event carries the monitor state at the time of the check; keep the Enabled flag set on this page.
         monitors[index] = status with { Enabled = monitors[index].Enabled };
-        StateHasChanged();
     }
 
-    private void OnMonitorCreated(MonitorStatusDto created) => monitors.Add(created);
+    private async Task<string?> AddAsync(string url, int intervalSeconds, int expectedStatusCode)
+    {
+        string? validationError = null;
+        var failure = await RunAsync(async () =>
+        {
+            var result = await MonitorService.CreateAsync(
+                CurrentUser.UserId, url, intervalSeconds, expectedStatusCode, cancellation.Token);
+            if (result.Value is { } created)
+            {
+                pageError = null;
+                InsertSorted(created);
+            }
+            else
+            {
+                validationError = result.Error;
+            }
+        }, "Не удалось добавить монитор.");
+
+        return validationError ?? failure;
+    }
 
     private async Task ToggleAsync(MonitorStatusDto monitor)
     {
-        if (busy)
-        {
-            return;
-        }
-
-        busy = true;
-        try
+        pageError = await RunAsync(async () =>
         {
             var enabled = !monitor.Enabled;
-            if (await MonitorService.SetEnabledAsync(monitor.Id, CurrentUser.UserId, enabled, disposed.Token))
+            if (await MonitorService.SetEnabledAsync(monitor.Id, CurrentUser.UserId, enabled, cancellation.Token))
             {
                 var index = monitors.FindIndex(m => m.Id == monitor.Id);
                 if (index >= 0)
@@ -183,44 +197,80 @@ else
                     monitors[index] = monitors[index] with { Enabled = enabled };
                 }
             }
-        }
-        finally
-        {
-            busy = false;
-        }
+        }, "Не удалось изменить состояние монитора.");
     }
 
     private async Task DeleteAsync(MonitorStatusDto monitor)
     {
-        if (busy)
+        pageError = await RunAsync(async () =>
         {
-            return;
-        }
-
-        busy = true;
-        try
-        {
-            if (await MonitorService.DeleteAsync(monitor.Id, CurrentUser.UserId, disposed.Token))
+            if (await MonitorService.DeleteAsync(monitor.Id, CurrentUser.UserId, cancellation.Token))
             {
                 monitors.RemoveAll(m => m.Id == monitor.Id);
             }
+        }, "Не удалось удалить монитор.");
+    }
+
+    /// <summary>
+    /// The only way to touch the data from this page: one operation at a time, because the circuit shares one DbContext.
+    /// Returns null on success, otherwise the text to show; exceptions never escape into the circuit.
+    /// </summary>
+    private async Task<string?> RunAsync(Func<Task> action, string failureText)
+    {
+        if (busy)
+        {
+            return "Предыдущая операция ещё выполняется.";
+        }
+
+        busy = true;
+        Refresh();
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            if (isDisposed && ex is OperationCanceledException)
+            {
+                return null;
+            }
+
+            Logger.LogError(ex, "{Operation} failed", failureText);
+            return failureText;
         }
         finally
         {
             busy = false;
+            Refresh();
         }
+    }
+
+    // AddMonitorForm reports back through a plain delegate, which does not re-render this page by itself.
+    private void Refresh()
+    {
+        if (!isDisposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    // Same order as MonitorService.ListAsync (URL, then id).
+    private void InsertSorted(MonitorStatusDto created)
+    {
+        monitors.RemoveAll(m => m.Id == created.Id);
+        var index = monitors.FindIndex(m =>
+            string.CompareOrdinal(m.Url, created.Url) is var byUrl && (byUrl > 0 || (byUrl == 0 && m.Id.CompareTo(created.Id) > 0)));
+        monitors.Insert(index < 0 ? monitors.Count : index, created);
     }
 
     private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        await disposed.CancelAsync();
-        if (hub is not null)
-        {
-            await hub.DisposeAsync();
-        }
-
-        disposed.Dispose();
+        isDisposed = true;
+        subscription?.Dispose();
+        cancellation.Cancel();
+        cancellation.Dispose();
     }
 }

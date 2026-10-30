@@ -1,8 +1,4 @@
 @using System.ComponentModel.DataAnnotations
-@using UptimeWatch.Application
-
-@inject MonitorService MonitorService
-@inject ICurrentUser CurrentUser
 
 <EditForm Model="input" OnValidSubmit="SubmitAsync" FormName="add-monitor" class="card card-body mb-4">
     <DataAnnotationsValidator />
@@ -20,7 +16,7 @@
             <InputNumber id="monitor-code" class="form-control" @bind-Value="input.ExpectedStatusCode" />
         </div>
         <div class="col-lg-2">
-            <button type="submit" class="btn btn-primary w-100" disabled="@submitting">Добавить</button>
+            <button type="submit" class="btn btn-primary w-100" disabled="@Busy">Добавить</button>
         </div>
     </div>
     <ValidationSummary class="text-danger mt-2" />
@@ -33,37 +29,21 @@
 @code {
     private readonly InputModel input = new();
     private string? error;
-    private bool submitting;
 
+    /// <summary>True while the page runs any operation; the page owns the guard so operations cannot overlap.</summary>
     [Parameter]
-    public EventCallback<MonitorStatusDto> OnCreated { get; set; }
+    public bool Busy { get; set; }
+
+    /// <summary>Creates the monitor (url, interval, expected code); returns an error text, or null on success.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, int, int, Task<string?>> OnSubmit { get; set; } = default!;
 
     private async Task SubmitAsync()
     {
-        if (submitting)
+        error = await OnSubmit(input.Url, input.IntervalSeconds, input.ExpectedStatusCode);
+        if (error is null)
         {
-            return;
-        }
-
-        submitting = true;
-        error = null;
-        try
-        {
-            var result = await MonitorService.CreateAsync(
-                CurrentUser.UserId, input.Url, input.IntervalSeconds, input.ExpectedStatusCode, CancellationToken.None);
-            if (result.Value is { } created)
-            {
-                input.Url = string.Empty;
-                await OnCreated.InvokeAsync(created);
-            }
-            else
-            {
-                error = result.Error;
-            }
-        }
-        finally
-        {
-            submitting = false;
+            input.Url = string.Empty;
         }
     }
 

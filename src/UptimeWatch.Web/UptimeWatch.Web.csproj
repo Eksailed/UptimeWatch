@@ -5,7 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.22" />
     <ProjectReference Include="..\UptimeWatch.Application\UptimeWatch.Application.csproj" />
     <ProjectReference Include="..\UptimeWatch.Infrastructure\UptimeWatch.Infrastructure.csproj" />
   </ItemGroup>

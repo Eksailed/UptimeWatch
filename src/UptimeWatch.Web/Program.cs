@@ -77,6 +77,7 @@ builder.Services.AddScoped<CheckProcessor>();
 builder.Services.AddSingleton<CheckRunner>();
 
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<MonitorUpdatesBroadcaster>();
 builder.Services.AddSingleton<IMonitorNotifications, SignalRMonitorNotifications>();
 
 // Fallback notification channel. The LAST registration of a service type wins, so a later task overrides it
