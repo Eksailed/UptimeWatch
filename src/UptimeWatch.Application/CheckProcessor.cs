@@ -35,7 +35,7 @@ public sealed class CheckProcessor(
 
         if (!await monitors.SaveCheckAsync(monitor, result, closedIncident, ct))
         {
-            log.LogInformation("Monitor {MonitorId} was deleted during the check; result discarded", monitor.Id);
+            log.LogInformation("Monitor {MonitorId} was deleted or superseded by a newer state (stale copy) during the check; result discarded", monitor.Id);
             return;
         }
 

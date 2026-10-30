@@ -22,7 +22,9 @@ public interface IMonitorRepository
     Task<IReadOnlyList<SiteMonitor>> ClaimDueAsync(DateTime now, int limit, TimeSpan lease, CancellationToken ct);
 
     /// <summary>
-    /// Persists the outcome of one check in a single transaction. Returns false if the monitor no longer exists.
+    /// Persists the outcome of one check in a single transaction. Returns false if the monitor no longer exists
+    /// OR a stale copy of the monitor conflicts with a newer incident state (incident writes are fenced with
+    /// <c>EndedAt IS NULL</c>). On a false result nothing is stored and the caller must not send any notification.
     /// Implementers must:
     /// <list type="bullet">
     /// <item>insert <paramref name="result"/>;</item>
