@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+*.log
+
+# IDE / user files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Secrets and local config
+.env
+appsettings.Local.json
+
+# Tooling
+.superpowers/
