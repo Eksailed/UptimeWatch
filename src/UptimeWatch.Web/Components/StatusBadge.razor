@@ -1,0 +1,22 @@
+@using UptimeWatch.Application
+
+<span class="badge @CssClass">
+    <span class="status-dot @DotClass" aria-hidden="true"></span>
+    @Text
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public MonitorStatusDto Monitor { get; set; } = default!;
+
+    private bool Inactive => !Monitor.Enabled || (!Monitor.IsDown && Monitor.LastCheckedAt is null);
+
+    private string Text => !Monitor.Enabled ? "Пауза"
+        : Monitor.IsDown ? "Down"
+        : Monitor.LastCheckedAt is null ? "Нет данных"
+        : "Up";
+
+    private string CssClass => Inactive ? "badge-paused" : Monitor.IsDown ? "badge-down" : "badge-up";
+
+    private string DotClass => Inactive ? "is-paused" : Monitor.IsDown ? "is-down" : "is-up";
+}

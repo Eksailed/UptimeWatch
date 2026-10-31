@@ -1,6 +1,6 @@
 @using System.ComponentModel.DataAnnotations
 
-<EditForm Model="input" OnValidSubmit="SubmitAsync" FormName="add-monitor" class="card card-body mb-4">
+<EditForm Model="input" OnValidSubmit="SubmitAsync" FormName="add-monitor" class="add-panel">
     <DataAnnotationsValidator />
     <div class="row g-2 align-items-end">
         <div class="col-lg-6">
@@ -19,7 +19,7 @@
             <button type="submit" class="btn btn-primary w-100" disabled="@Busy">Добавить</button>
         </div>
     </div>
-    <ValidationSummary class="text-danger mt-2" />
+    <ValidationSummary class="text-danger mt-2 mb-0" />
     @if (error is not null)
     {
         <div class="alert alert-danger mt-2 mb-0" role="alert">@error</div>

@@ -14,7 +14,27 @@
 
 <PageTitle>Мониторы</PageTitle>
 
-<h1>Мониторы</h1>
+<div class="page-head">
+    <h1>Мониторы</h1>
+</div>
+
+@if (!loading && !loadFailed)
+{
+    <div class="summary" aria-label="Сводка">
+        <div class="summary-item">
+            <span class="label">Всего</span>
+            <span class="value">@monitors.Count</span>
+        </div>
+        <div class="summary-item is-ok">
+            <span class="label">Работают</span>
+            <span class="value">@monitors.Count(m => m.Enabled && !m.IsDown)</span>
+        </div>
+        <div class="summary-item is-down">
+            <span class="label">Недоступны</span>
+            <span class="value">@monitors.Count(m => m.Enabled && m.IsDown)</span>
+        </div>
+    </div>
+}
 
 <AddMonitorForm Busy="busy" OnSubmit="AddAsync" />
 
@@ -25,7 +45,7 @@
 
 @if (loading)
 {
-    <p>Загрузка...</p>
+    <div class="state-loading" role="status">Загрузка...</div>
 }
 else if (loadFailed)
 {
@@ -33,63 +53,80 @@ else if (loadFailed)
 }
 else if (monitors.Count == 0)
 {
-    <p>Мониторов пока нет. Добавьте первый сайт выше.</p>
+    <div class="state-empty">
+        <strong>Добавьте первый сайт</strong>
+        Укажите адрес в форме выше, и проверки начнутся автоматически.
+    </div>
 }
 else
 {
-    <div class="row row-cols-1 row-cols-lg-2 g-3">
+    <div class="monitor-grid">
         @foreach (var monitor in monitors)
         {
-            <div class="col" @key="monitor.Id">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <h5 class="card-title text-break">
-                                <a href="monitors/@monitor.Id">@monitor.Url</a>
-                            </h5>
-                            @if (!monitor.Enabled)
-                            {
-                                <span class="badge bg-secondary">Пауза</span>
-                            }
-                            else if (monitor.IsDown)
-                            {
-                                <span class="badge bg-danger">Down</span>
-                            }
-                            else if (monitor.LastCheckedAt is null)
-                            {
-                                <span class="badge bg-secondary">Нет данных</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success">Up</span>
-                            }
-                        </div>
-                        <p class="card-text mb-1">
-                            Последняя проверка:
+            <article class="monitor-card @(monitor.Enabled && monitor.IsDown ? "is-down" : null)" @key="monitor.Id">
+                <div class="monitor-head">
+                    <span class="status-dot @StatusDotClass(monitor)" aria-hidden="true"></span>
+                    <div class="monitor-title">
+                        <a class="monitor-domain" href="monitors/@monitor.Id">@MonitorUrl.Domain(monitor.Url)</a>
+                        <span class="monitor-url">@monitor.Url</span>
+                    </div>
+                    <StatusBadge Monitor="monitor" />
+                </div>
+
+                <dl class="metrics">
+                    <div class="metric">
+                        <dt>Код</dt>
+                        <dd>@(monitor.LastStatusCode?.ToString() ?? "—")</dd>
+                    </div>
+                    <div class="metric">
+                        <dt>Время ответа</dt>
+                        <dd>@(monitor.LastResponseTimeMs is { } ms ? $"{ms} мс" : "—")</dd>
+                    </div>
+                    <div class="metric">
+                        <dt>Проверка</dt>
+                        <dd>
                             @if (monitor.LastCheckedAt is { } checkedAt)
                             {
-                                <span>@checkedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC, код @(monitor.LastStatusCode?.ToString() ?? "—"), @monitor.LastResponseTimeMs мс</span>
+                                <time datetime="@checkedAt.ToString("O")">@checkedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</time>
                             }
                             else
                             {
                                 <span>ещё не выполнялась</span>
                             }
-                        </p>
-                        <p class="card-text mb-1">
-                            Аптайм: 24ч @FormatUptime(monitor.Uptime.Last24h), 7д @FormatUptime(monitor.Uptime.Last7d), 30д @FormatUptime(monitor.Uptime.Last30d)
-                        </p>
-                        <p class="card-text text-muted">
-                            Интервал @monitor.IntervalSeconds с, ожидаемый код @monitor.ExpectedStatusCode
-                        </p>
-                        <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => ToggleAsync(monitor)">
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="uptime-bars">
+                    <UptimeBar Label="24ч" Value="monitor.Uptime.Last24h" />
+                    <UptimeBar Label="7д" Value="monitor.Uptime.Last7d" />
+                    <UptimeBar Label="30д" Value="monitor.Uptime.Last30d" />
+                </div>
+
+                <div class="monitor-foot">
+                    <span class="monitor-config">Интервал @monitor.IntervalSeconds с, ожидаемый код @monitor.ExpectedStatusCode</span>
+                    <div class="monitor-actions">
+                        <button class="btn btn-outline-secondary btn-icon" disabled="@busy" @onclick="() => ToggleAsync(monitor)"
+                                title="@(monitor.Enabled ? "Поставить на паузу" : "Включить проверки")"
+                                aria-label="@(monitor.Enabled ? "Пауза" : "Включить"): @MonitorUrl.Domain(monitor.Url)">
+                            @if (monitor.Enabled)
+                            {
+                                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1" /><rect x="9.5" y="3" width="3" height="10" rx="1" /></svg>
+                            }
+                            else
+                            {
+                                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.2v9.6a.6.6 0 0 0 .9.5l7.6-4.8a.6.6 0 0 0 0-1L5.4 2.7a.6.6 0 0 0-.9.5z" /></svg>
+                            }
                             @(monitor.Enabled ? "Пауза" : "Включить")
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" disabled="@busy" @onclick="() => DeleteAsync(monitor)">
+                        <button class="btn btn-outline-danger btn-icon" disabled="@busy" @onclick="() => DeleteAsync(monitor)"
+                                title="Удалить монитор" aria-label="Удалить: @MonitorUrl.Domain(monitor.Url)">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.6 9a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9L12 4" /></svg>
                             Удалить
                         </button>
                     </div>
                 </div>
-            </div>
+            </article>
         }
     </div>
 }
@@ -270,7 +307,8 @@ else
         monitors.Insert(index < 0 ? monitors.Count : index, created);
     }
 
-    private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
+    private static string StatusDotClass(MonitorStatusDto monitor) =>
+        !monitor.Enabled || (!monitor.IsDown && monitor.LastCheckedAt is null) ? "is-paused" : monitor.IsDown ? "is-down" : "is-up";
 
     public void Dispose()
     {
