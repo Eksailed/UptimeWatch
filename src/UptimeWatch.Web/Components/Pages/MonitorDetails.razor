@@ -12,86 +12,101 @@
 
 @if (!loaded)
 {
-    <p>Загрузка...</p>
+    <div class="state-loading" role="status">Загрузка...</div>
 }
 else if (monitor is null)
 {
-    <h1>Не найдено</h1>
-    <p><a href="monitors">К списку мониторов</a></p>
+    <a class="back-link" href="monitors">← Мониторы</a>
+    <div class="state-empty">
+        <strong>Не найдено</strong>
+        Такого монитора нет, либо он принадлежит другому аккаунту.
+    </div>
 }
 else
 {
-    <h1 class="text-break">@monitor.Url</h1>
-    <p>
-        @if (!monitor.Enabled)
-        {
-            <span class="badge bg-secondary">Пауза</span>
-        }
-        else if (monitor.IsDown)
-        {
-            <span class="badge bg-danger">Down</span>
-        }
-        else if (monitor.LastCheckedAt is null)
-        {
-            <span class="badge bg-secondary">Нет данных</span>
-        }
-        else
-        {
-            <span class="badge bg-success">Up</span>
-        }
-        Аптайм: 24ч @FormatUptime(monitor.Uptime.Last24h), 7д @FormatUptime(monitor.Uptime.Last7d), 30д @FormatUptime(monitor.Uptime.Last30d)
-    </p>
-    <p><a href="monitors">К списку мониторов</a></p>
+    <a class="back-link" href="monitors">← Мониторы</a>
 
-    <h2>Инциденты (последние @IncidentCount)</h2>
+    <div class="page-head">
+        <h1 class="text-break">@MonitorUrl.Domain(monitor.Url)</h1>
+        <StatusBadge Monitor="monitor" />
+    </div>
+    <p class="text-muted text-break">@monitor.Url</p>
+
+    <div class="details-uptime">
+        <div class="uptime-bars">
+            <UptimeBar Label="Аптайм 24ч" Value="monitor.Uptime.Last24h" />
+            <UptimeBar Label="Аптайм 7д" Value="monitor.Uptime.Last7d" />
+            <UptimeBar Label="Аптайм 30д" Value="monitor.Uptime.Last30d" />
+        </div>
+    </div>
+
+    <h2 class="section-title">Инциденты (последние @IncidentCount)</h2>
     @if (incidents.Count == 0)
     {
-        <p>Инцидентов не было.</p>
+        <div class="state-empty">Инцидентов не было.</div>
     }
     else
     {
-        <table class="table table-sm">
-            <thead>
-                <tr><th>Начало (UTC)</th><th>Окончание (UTC)</th><th>Длительность</th><th>Последняя ошибка</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var incident in incidents)
-                {
-                    <tr>
-                        <td>@FormatTime(incident.StartedAt)</td>
-                        <td>@(incident.EndedAt is { } ended ? FormatTime(ended) : "идёт")</td>
-                        <td>@(incident.Duration is { } duration ? DurationFormatter.Format(duration) : "—")</td>
-                        <td class="text-break">@incident.LastError</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <ol class="timeline">
+            @foreach (var incident in incidents)
+            {
+                <li class="timeline-item">
+                    <span class="status-dot @(incident.EndedAt is null ? "is-down" : "is-paused")" aria-hidden="true"></span>
+                    <div class="timeline-body">
+                        <div class="timeline-title">
+                            @if (incident.EndedAt is null)
+                            {
+                                <span class="badge badge-down">Идёт</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-paused">Завершён</span>
+                            }
+                            <span class="timeline-meta">
+                                @FormatTime(incident.StartedAt) UTC
+                                @if (incident.EndedAt is { } ended)
+                                {
+                                    <text>— @FormatTime(ended) UTC</text>
+                                }
+                            </span>
+                            <span class="timeline-meta">Длительность: @(incident.Duration is { } duration ? DurationFormatter.Format(duration) : "—")</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(incident.LastError))
+                        {
+                            <div class="timeline-error">@incident.LastError</div>
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
     }
 
-    <h2>Последние проверки (@ResultCount)</h2>
+    <h2 class="section-title">Последние проверки (@ResultCount)</h2>
     @if (results.Count == 0)
     {
-        <p>Проверок ещё не было.</p>
+        <div class="state-empty">Проверок ещё не было.</div>
     }
     else
     {
-        <table class="table table-sm">
-            <thead>
-                <tr><th>Время (UTC)</th><th>Результат</th><th>Код</th><th>Время ответа, мс</th><th>Ошибка</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var result in results)
-                {
-                    <tr>
-                        <td>@FormatTime(result.CheckedAt)</td>
-                        <td>@(result.Success ? "OK" : "Сбой")</td>
-                        <td>@(result.StatusCode?.ToString() ?? "—")</td>
-                        <td>@result.ResponseTimeMs</td>
-                        <td class="text-break">@result.Error</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="table-wrap">
+            <table class="table table-sm">
+                <thead>
+                    <tr><th>Время (UTC)</th><th>Результат</th><th>Код</th><th>Время ответа, мс</th><th>Ошибка</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in results)
+                    {
+                        <tr>
+                            <td>@FormatTime(result.CheckedAt)</td>
+                            <td><span class="@(result.Success ? "result-ok" : "result-fail")">@(result.Success ? "OK" : "Сбой")</span></td>
+                            <td>@(result.StatusCode?.ToString() ?? "—")</td>
+                            <td>@result.ResponseTimeMs</td>
+                            <td class="text-break">@result.Error</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
 }
 
@@ -119,8 +134,6 @@ else
 
         loaded = true;
     }
-
-    private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
 
     private static string FormatTime(DateTime value) => value.ToString("yyyy-MM-dd HH:mm:ss");
 }
