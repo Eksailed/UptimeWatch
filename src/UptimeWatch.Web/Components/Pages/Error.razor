@@ -1,20 +1,20 @@
-﻿@page "/Error"
+@page "/Error"
 @using System.Diagnostics
 
-<PageTitle>Ошибка</PageTitle>
+<PageTitle>@L["ErrorPage_Title"]</PageTitle>
 
 <div class="narrow-card error-card">
-    <h1>Ошибка</h1>
-    <p>Не удалось обработать запрос. Попробуйте ещё раз чуть позже.</p>
+    <h1>@L["ErrorPage_Title"]</h1>
+    <p>@L["ErrorPage_Text"]</p>
 
     @if (ShowRequestId)
     {
         <p class="text-muted mb-0">
-            Идентификатор запроса: <code>@RequestId</code>
+            @L["ErrorPage_RequestId"] <code>@RequestId</code>
         </p>
     }
 
-    <a class="btn btn-primary mt-3" href="">На главную</a>
+    <a class="btn btn-primary mt-3" href="">@L["ErrorPage_Home"]</a>
 </div>
 
 @code{

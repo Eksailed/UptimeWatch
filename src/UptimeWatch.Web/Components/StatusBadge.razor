@@ -11,10 +11,10 @@
 
     private bool Inactive => !Monitor.Enabled || (!Monitor.IsDown && Monitor.LastCheckedAt is null);
 
-    private string Text => !Monitor.Enabled ? "Пауза"
-        : Monitor.IsDown ? "Down"
-        : Monitor.LastCheckedAt is null ? "Нет данных"
-        : "Up";
+    private string Text => !Monitor.Enabled ? L["Status_Paused"]
+        : Monitor.IsDown ? L["Status_Down"]
+        : Monitor.LastCheckedAt is null ? L["Status_NoData"]
+        : L["Status_Up"];
 
     private string CssClass => Inactive ? "badge-paused" : Monitor.IsDown ? "badge-down" : "badge-up";
 

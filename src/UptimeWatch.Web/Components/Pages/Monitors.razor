@@ -12,25 +12,25 @@
 @inject MonitorUpdatesBroadcaster Updates
 @inject ILogger<Monitors> Logger
 
-<PageTitle>Мониторы</PageTitle>
+<PageTitle>@L["Monitors_Title"]</PageTitle>
 
 <div class="page-head">
-    <h1>Мониторы</h1>
+    <h1>@L["Monitors_Title"]</h1>
 </div>
 
 @if (!loading && !loadFailed)
 {
-    <div class="summary" aria-label="Сводка">
+    <div class="summary" aria-label="@L["Monitors_Summary"]">
         <div class="summary-item">
-            <span class="label">Всего</span>
+            <span class="label">@L["Monitors_Total"]</span>
             <span class="value">@monitors.Count</span>
         </div>
         <div class="summary-item is-ok">
-            <span class="label">Работают</span>
+            <span class="label">@L["Monitors_Up"]</span>
             <span class="value">@monitors.Count(m => m.Enabled && !m.IsDown)</span>
         </div>
         <div class="summary-item is-down">
-            <span class="label">Недоступны</span>
+            <span class="label">@L["Monitors_Down"]</span>
             <span class="value">@monitors.Count(m => m.Enabled && m.IsDown)</span>
         </div>
     </div>
@@ -45,7 +45,7 @@
 
 @if (loading)
 {
-    <div class="state-loading" role="status">Загрузка...</div>
+    <div class="state-loading" role="status">@L["Common_Loading"]</div>
 }
 else if (loadFailed)
 {
@@ -54,8 +54,8 @@ else if (loadFailed)
 else if (monitors.Count == 0)
 {
     <div class="state-empty">
-        <strong>Добавьте первый сайт</strong>
-        Укажите адрес в форме выше, и проверки начнутся автоматически.
+        <strong>@L["Monitors_Empty_Title"]</strong>
+        @L["Monitors_Empty_Text"]
     </div>
 }
 else
@@ -75,40 +75,40 @@ else
 
                 <dl class="metrics">
                     <div class="metric">
-                        <dt>Код</dt>
+                        <dt>@L["Monitors_Code"]</dt>
                         <dd>@(monitor.LastStatusCode?.ToString() ?? "—")</dd>
                     </div>
                     <div class="metric">
-                        <dt>Время ответа</dt>
-                        <dd>@(monitor.LastResponseTimeMs is { } ms ? $"{ms} мс" : "—")</dd>
+                        <dt>@L["Monitors_ResponseTime"]</dt>
+                        <dd>@(monitor.LastResponseTimeMs is { } ms ? L["Monitors_Ms", ms].Value : "—")</dd>
                     </div>
                     <div class="metric">
-                        <dt>Проверка</dt>
+                        <dt>@L["Monitors_Checked"]</dt>
                         <dd>
                             @if (monitor.LastCheckedAt is { } checkedAt)
                             {
-                                <time datetime="@checkedAt.ToString("O")">@checkedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</time>
+                                <time datetime="@checkedAt.ToString("O")">@UiFormat.Time(checkedAt)</time>
                             }
                             else
                             {
-                                <span>ещё не выполнялась</span>
+                                <span>@L["Monitors_NotChecked"]</span>
                             }
                         </dd>
                     </div>
                 </dl>
 
                 <div class="uptime-bars">
-                    <UptimeBar Label="24ч" Value="monitor.Uptime.Last24h" />
-                    <UptimeBar Label="7д" Value="monitor.Uptime.Last7d" />
-                    <UptimeBar Label="30д" Value="monitor.Uptime.Last30d" />
+                    <UptimeBar Label="@L["Monitors_Uptime24h"]" Value="monitor.Uptime.Last24h" />
+                    <UptimeBar Label="@L["Monitors_Uptime7d"]" Value="monitor.Uptime.Last7d" />
+                    <UptimeBar Label="@L["Monitors_Uptime30d"]" Value="monitor.Uptime.Last30d" />
                 </div>
 
                 <div class="monitor-foot">
-                    <span class="monitor-config">Интервал @monitor.IntervalSeconds с, ожидаемый код @monitor.ExpectedStatusCode</span>
+                    <span class="monitor-config">@L["Monitors_Config", monitor.IntervalSeconds, monitor.ExpectedStatusCode]</span>
                     <div class="monitor-actions">
                         <button class="btn btn-outline-secondary btn-icon" disabled="@busy" @onclick="() => ToggleAsync(monitor)"
-                                title="@(monitor.Enabled ? "Поставить на паузу" : "Включить проверки")"
-                                aria-label="@(monitor.Enabled ? "Пауза" : "Включить"): @MonitorUrl.Domain(monitor.Url)">
+                                title="@(monitor.Enabled ? L["Monitors_PauseTitle"] : L["Monitors_ResumeTitle"])"
+                                aria-label="@(monitor.Enabled ? L["Monitors_Pause"] : L["Monitors_Resume"]): @MonitorUrl.Domain(monitor.Url)">
                             @if (monitor.Enabled)
                             {
                                 <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1" /><rect x="9.5" y="3" width="3" height="10" rx="1" /></svg>
@@ -117,12 +117,12 @@ else
                             {
                                 <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.2v9.6a.6.6 0 0 0 .9.5l7.6-4.8a.6.6 0 0 0 0-1L5.4 2.7a.6.6 0 0 0-.9.5z" /></svg>
                             }
-                            @(monitor.Enabled ? "Пауза" : "Включить")
+                            @(monitor.Enabled ? L["Monitors_Pause"] : L["Monitors_Resume"])
                         </button>
                         <button class="btn btn-outline-danger btn-icon" disabled="@busy" @onclick="() => DeleteAsync(monitor)"
-                                title="Удалить монитор" aria-label="Удалить: @MonitorUrl.Domain(monitor.Url)">
+                                title="@L["Monitors_DeleteTitle"]" aria-label="@L["Monitors_Delete"]: @MonitorUrl.Domain(monitor.Url)">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.6 9a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9L12 4" /></svg>
-                            Удалить
+                            @L["Monitors_Delete"]
                         </button>
                     </div>
                 </div>
@@ -150,7 +150,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        pageError = await RunAsync(LoadAsync, "Не удалось загрузить мониторы.");
+        pageError = await RunAsync(LoadAsync, "Monitors_LoadFailed");
         loadFailed = pageError is not null;
         loading = false;
         foreach (var update in pendingUpdates)
@@ -220,9 +220,9 @@ else
             }
             else
             {
-                validationError = result.Error?.Message;
+                validationError = result.Error is { } error ? L.Text(error) : null;
             }
-        }, "Не удалось добавить монитор.");
+        }, "Monitors_AddFailed");
 
         return validationError ?? failure;
     }
@@ -240,7 +240,7 @@ else
                     monitors[index] = monitors[index] with { Enabled = enabled };
                 }
             }
-        }, "Не удалось изменить состояние монитора.");
+        }, "Monitors_ToggleFailed");
     }
 
     private async Task DeleteAsync(MonitorStatusDto monitor)
@@ -251,18 +251,19 @@ else
             {
                 monitors.RemoveAll(m => m.Id == monitor.Id);
             }
-        }, "Не удалось удалить монитор.");
+        }, "Monitors_DeleteFailed");
     }
 
     /// <summary>
     /// The only way to touch the data from this page: one operation at a time, because the circuit shares one DbContext.
-    /// Returns null on success, otherwise the text to show; exceptions never escape into the circuit.
+    /// Returns null on success, otherwise the text to show (the resource <paramref name="failureKey"/> in the
+    /// current language; the key is what gets logged); exceptions never escape into the circuit.
     /// </summary>
-    private async Task<string?> RunAsync(Func<Task> action, string failureText)
+    private async Task<string?> RunAsync(Func<Task> action, string failureKey)
     {
         if (busy)
         {
-            return "Предыдущая операция ещё выполняется.";
+            return L["Common_Busy"];
         }
 
         busy = true;
@@ -279,8 +280,8 @@ else
                 return null;
             }
 
-            Logger.LogError(ex, "{Operation} failed", failureText);
-            return failureText;
+            Logger.LogError(ex, "{Operation} failed", failureKey);
+            return L[failureKey];
         }
         finally
         {
