@@ -1,17 +1,35 @@
-﻿@page "/"
+@page "/"
 
 <PageTitle>UptimeWatch</PageTitle>
 
-<h1>UptimeWatch</h1>
+<section class="hero">
+    <h1>Узнайте, что сайт упал, раньше своих пользователей</h1>
+    <p class="hero-lead">UptimeWatch проверяет ваши сайты по расписанию и присылает уведомление в Telegram, когда сайт падает или восстанавливается.</p>
 
-<p>Watch your websites and get notified the moment they go down.</p>
+    <div class="hero-actions">
+        <AuthorizeView>
+            <Authorized>
+                <a class="btn btn-primary btn-lg" href="monitors">К мониторам</a>
+            </Authorized>
+            <NotAuthorized>
+                <a class="btn btn-primary btn-lg" href="Account/Register">Создать аккаунт</a>
+                <a class="btn btn-outline-secondary btn-lg" href="Account/Login">Войти</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</section>
 
-<AuthorizeView>
-    <Authorized>
-        <a class="btn btn-primary" href="monitors">Go to your monitors</a>
-    </Authorized>
-    <NotAuthorized>
-        <a class="btn btn-primary" href="Account/Register">Create an account</a>
-        <a class="btn btn-outline-secondary" href="Account/Login">Log in</a>
-    </NotAuthorized>
-</AuthorizeView>
+<section class="features" aria-label="Возможности">
+    <div class="feature">
+        <h2>Проверки каждые 30 с и чаще</h2>
+        <p>Задайте интервал для каждого сайта и ожидаемый код ответа.</p>
+    </div>
+    <div class="feature">
+        <h2>Инциденты после 3 неудач</h2>
+        <p>Одиночный сбой не считается падением, поэтому ложных тревог меньше.</p>
+    </div>
+    <div class="feature">
+        <h2>Telegram-алерты</h2>
+        <p>Сообщение приходит, когда сайт упал и когда он снова работает.</p>
+    </div>
+</section>
