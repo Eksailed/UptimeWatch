@@ -109,10 +109,10 @@
     <value>На главную</value>
   </data>
   <data name="Status_Up" xml:space="preserve">
-    <value>Up</value>
+    <value>Работает</value>
   </data>
   <data name="Status_Down" xml:space="preserve">
-    <value>Down</value>
+    <value>Недоступен</value>
   </data>
   <data name="Status_Paused" xml:space="preserve">
     <value>Пауза</value>
