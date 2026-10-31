@@ -1,9 +1,10 @@
-@page "/monitors"
+﻿@page "/monitors"
 @attribute [Authorize]
 @* No prerender: the page loads data and subscribes to updates, which must happen once, in the circuit. *@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 
+@using System.Globalization
 @using UptimeWatch.Application
 @using UptimeWatch.Web.Realtime
 
@@ -136,6 +137,8 @@ else
     private readonly List<MonitorStatusDto> pendingUpdates = [];
     private List<MonitorStatusDto> monitors = [];
     private IDisposable? subscription;
+    private CultureInfo culture = CultureInfo.CurrentCulture;
+    private CultureInfo uiCulture = CultureInfo.CurrentUICulture;
     private string? pageError;
     private bool loading = true;
     private bool loadFailed;
@@ -144,6 +147,10 @@ else
 
     protected override void OnInitialized()
     {
+        // The culture of the circuit, to render the updates pushed from the checker's thread in the same language.
+        culture = CultureInfo.CurrentCulture;
+        uiCulture = CultureInfo.CurrentUICulture;
+
         // Subscribe before loading, so an update published while the list is loading is not lost.
         subscription = Updates.Subscribe(CurrentUser.UserId, OnUpdateAsync);
     }
@@ -187,6 +194,7 @@ else
                 return;
             }
 
+            using var scope = CultureScope.Enter(culture, uiCulture);
             ApplyUpdate(status);
             StateHasChanged();
         });
