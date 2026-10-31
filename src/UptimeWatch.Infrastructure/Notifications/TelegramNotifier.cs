@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using UptimeWatch.Application;
 using UptimeWatch.Domain;
@@ -13,6 +14,12 @@ public sealed class TelegramNotifier(ITelegramSender sender, IUserProfileStore p
 {
     /// <summary>Telegram's limit for the text of one message.</summary>
     public const int MaxMessageLength = 4096;
+
+    /// <summary>
+    /// Alerts are always Russian, whatever language the UI (or the request that happens to run the check) uses:
+    /// the language of a recipient is not known yet. Per-user alert language is a future profile setting.
+    /// </summary>
+    internal static readonly CultureInfo AlertCulture = CultureInfo.GetCultureInfo("ru");
 
     public async Task NotifyDownAsync(SiteMonitor monitor, Incident incident, CancellationToken ct)
     {
@@ -39,7 +46,7 @@ public sealed class TelegramNotifier(ITelegramSender sender, IUserProfileStore p
             return;
         }
 
-        var downtime = incident.Duration is { } d ? DurationFormatter.Format(d) : "неизвестно";
+        var downtime = incident.Duration is { } d ? DurationFormatter.Format(d, AlertCulture) : "неизвестно";
         var text = BuildText($"🟢 Сайт снова доступен: {monitor.Url}", "\nВремя недоступности: ", downtime);
         await sender.SendAsync(chatId, text, ct);
     }

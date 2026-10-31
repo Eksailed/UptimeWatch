@@ -83,7 +83,7 @@
         var normalized = TelegramChatId.Normalize(chatId);
         if (!TelegramChatId.TryValidate(normalized, out var validationError))
         {
-            error = validationError;
+            error = validationError.Message;
             return;
         }
 
@@ -113,7 +113,7 @@
 
         if (!TelegramChatId.TryValidate(normalized, out var validationError))
         {
-            error = validationError;
+            error = validationError.Message;
             return;
         }
 

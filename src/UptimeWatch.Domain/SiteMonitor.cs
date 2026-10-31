@@ -22,22 +22,26 @@ public sealed class SiteMonitor
     {
         if (string.IsNullOrWhiteSpace(ownerId))
         {
-            throw new DomainException("Owner is required.");
+            throw new DomainException(new ErrorInfo(ErrorCode.OwnerRequired, "Owner is required."));
         }
 
         if (!UrlPolicy.TryValidate(url, out var error))
         {
-            throw new DomainException(error!);
+            throw new DomainException(error);
         }
 
         if (intervalSeconds < MonitorLimits.MinIntervalSeconds)
         {
-            throw new DomainException($"Interval must be at least {MonitorLimits.MinIntervalSeconds} seconds.");
+            throw new DomainException(new ErrorInfo(
+                ErrorCode.IntervalTooShort,
+                $"Interval must be at least {MonitorLimits.MinIntervalSeconds} seconds.",
+                MonitorLimits.MinIntervalSeconds));
         }
 
         if (expectedStatusCode is < 100 or > 599)
         {
-            throw new DomainException("Expected status code must be between 100 and 599.");
+            throw new DomainException(new ErrorInfo(
+                ErrorCode.ExpectedStatusOutOfRange, "Expected status code must be between 100 and 599.", 100, 599));
         }
 
         return new SiteMonitor

@@ -220,7 +220,7 @@ else
             }
             else
             {
-                validationError = result.Error;
+                validationError = result.Error?.Message;
             }
         }, "Не удалось добавить монитор.");
 
