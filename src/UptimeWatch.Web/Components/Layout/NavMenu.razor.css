@@ -170,6 +170,15 @@
         padding: 0.6rem 0.75rem;
     }
 
+    .nav-links:not(:has(a)) {
+        display: none;
+    }
+
+    .nav-links:not(:has(a)) + .nav-end {
+        padding-top: 0;
+        border-top: 0;
+    }
+
     .nav-end {
         margin-left: 0;
         flex-wrap: wrap;
