@@ -1,4 +1,6 @@
+﻿using System.Globalization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +13,7 @@ using UptimeWatch.Web.Background;
 using UptimeWatch.Web.Components;
 using UptimeWatch.Web.Components.Account;
 using UptimeWatch.Web.Hubs;
+using UptimeWatch.Web.Localization;
 using UptimeWatch.Web.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +38,12 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// UI texts: Resources/SharedResource.resx (ru, neutral) and SharedResource.en.resx.
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+
+// Cyrillic is written to the page as is instead of &#x41C; entities (the default encoder allows Latin only).
+builder.Services.AddWebEncoders(options => options.TextEncoderSettings = LocalizerMarkup.PageTextSettings);
 
 // Identity runs on Infrastructure's AppDbContext / ApplicationUser.
 builder.Services.AddCascadingAuthenticationState();
@@ -74,6 +83,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddSignInManager()
+    .AddErrorDescriber<LocalizedIdentityErrorDescriber>()
     .AddDefaultTokenProviders();
 
 builder.Services.AddHttpContextAccessor();
@@ -135,9 +145,21 @@ if (servesHttps || app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// The language of a request: the culture cookie (set by /culture/set), then the browser's Accept-Language, else Russian.
+// Must come before the Razor components and the hub are mapped, so the Blazor circuit starts in the same culture.
+// The query string provider is left out on purpose: the cookie is the only way to switch.
+app.UseRequestLocalization(new RequestLocalizationOptions
+    {
+        DefaultRequestCulture = new RequestCulture(SupportedLanguages.Default),
+        SupportedCultures = SupportedLanguages.Codes.Select(code => new CultureInfo(code)).ToList(),
+        SupportedUICultures = SupportedLanguages.Codes.Select(code => new CultureInfo(code)).ToList(),
+        RequestCultureProviders = [new CookieRequestCultureProvider(), new AcceptLanguageHeaderRequestCultureProvider()]
+    });
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapCultureEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

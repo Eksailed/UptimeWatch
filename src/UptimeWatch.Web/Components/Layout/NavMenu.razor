@@ -9,7 +9,7 @@
             <span class="brand-name">UptimeWatch</span>
         </a>
 
-        <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-label="Меню" />
+        <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-label="@L["Nav_Menu"]" />
         <label for="nav-toggle" class="nav-toggle" aria-hidden="true">
             <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                 <path d="M3 5.5h14M3 10h14M3 14.5h14" />
@@ -17,18 +17,17 @@
         </label>
 
         <div class="nav-panel" onclick="if (event.target.closest('a')) document.getElementById('nav-toggle').checked = false">
-            <nav class="nav-links" aria-label="Основная навигация">
+            <nav class="nav-links" aria-label="@L["Nav_Main"]">
                 <AuthorizeView>
                     <Authorized>
-                        <NavLink class="nav-link-item" href="monitors">Мониторы</NavLink>
-                        <NavLink class="nav-link-item" href="profile">Профиль</NavLink>
+                        <NavLink class="nav-link-item" href="monitors">@L["Nav_Monitors"]</NavLink>
+                        <NavLink class="nav-link-item" href="profile">@L["Nav_Profile"]</NavLink>
                     </Authorized>
                 </AuthorizeView>
             </nav>
 
             <div class="nav-end">
-                @* Placeholder for the language switcher (stage 2). *@
-                <div class="lang-switch-slot"></div>
+                <LanguageSwitcher />
 
                 <AuthorizeView>
                     <Authorized>
@@ -36,12 +35,12 @@
                         <form action="Account/Logout" method="post" class="nav-logout">
                             <AntiforgeryToken />
                             <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                            <button type="submit" class="btn btn-outline-secondary btn-sm">Выйти</button>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">@L["Nav_Logout"]</button>
                         </form>
                     </Authorized>
                     <NotAuthorized>
-                        <NavLink class="nav-link-item" href="Account/Login">Войти</NavLink>
-                        <a class="btn btn-primary btn-sm" href="Account/Register">Регистрация</a>
+                        <NavLink class="nav-link-item" href="Account/Login">@L["Nav_Login"]</NavLink>
+                        <a class="btn btn-primary btn-sm" href="Account/Register">@L["Nav_Register"]</a>
                     </NotAuthorized>
                 </AuthorizeView>
             </div>

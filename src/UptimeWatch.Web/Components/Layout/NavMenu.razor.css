@@ -187,7 +187,3 @@
     }
 }
 
-/* Reserved for the language switcher (stage 2); takes no space while empty. */
-.lang-switch-slot:empty {
-    display: none;
-}
