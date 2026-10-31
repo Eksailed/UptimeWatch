@@ -1,17 +1,35 @@
-﻿@page "/"
+@page "/"
 
 <PageTitle>UptimeWatch</PageTitle>
 
-<h1>UptimeWatch</h1>
+<section class="hero">
+    <h1>@L["Home_Hero_Title"]</h1>
+    <p class="hero-lead">@L["Home_Hero_Lead"]</p>
 
-<p>Watch your websites and get notified the moment they go down.</p>
+    <div class="hero-actions">
+        <AuthorizeView>
+            <Authorized>
+                <a class="btn btn-primary btn-lg" href="monitors">@L["Home_Cta_Monitors"]</a>
+            </Authorized>
+            <NotAuthorized>
+                <a class="btn btn-primary btn-lg" href="Account/Register">@L["Home_Cta_Register"]</a>
+                <a class="btn btn-outline-secondary btn-lg" href="Account/Login">@L["Home_Cta_Login"]</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</section>
 
-<AuthorizeView>
-    <Authorized>
-        <a class="btn btn-primary" href="monitors">Go to your monitors</a>
-    </Authorized>
-    <NotAuthorized>
-        <a class="btn btn-primary" href="Account/Register">Create an account</a>
-        <a class="btn btn-outline-secondary" href="Account/Login">Log in</a>
-    </NotAuthorized>
-</AuthorizeView>
+<section class="features" aria-label="@L["Home_Features_Label"]">
+    <div class="feature">
+        <h2>@L["Home_Feature1_Title"]</h2>
+        <p>@L["Home_Feature1_Text"]</p>
+    </div>
+    <div class="feature">
+        <h2>@L["Home_Feature2_Title"]</h2>
+        <p>@L["Home_Feature2_Text"]</p>
+    </div>
+    <div class="feature">
+        <h2>@L["Home_Feature3_Title"]</h2>
+        <p>@L["Home_Feature3_Text"]</p>
+    </div>
+</section>

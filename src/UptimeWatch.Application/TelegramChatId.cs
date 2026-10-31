@@ -1,4 +1,7 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+
+using UptimeWatch.Domain;
 
 namespace UptimeWatch.Application;
 
@@ -19,7 +22,7 @@ public static partial class TelegramChatId
     }
 
     /// <summary>A null (cleared) value is valid. Expects an already normalised value.</summary>
-    public static bool TryValidate(string? normalized, out string? error)
+    public static bool TryValidate(string? normalized, [NotNullWhen(false)] out ErrorInfo? error)
     {
         if (normalized is null)
         {
@@ -29,7 +32,9 @@ public static partial class TelegramChatId
 
         if (normalized.Length > MaxLength || !Pattern().IsMatch(normalized))
         {
-            error = "Некорректный chat_id: ожидается число (например, 123456789 или -1001234567890) или @имя_канала.";
+            error = new ErrorInfo(
+                ErrorCode.TelegramChatIdInvalid,
+                "Invalid chat_id: expected a number (e.g. 123456789 or -1001234567890) or @channel_name.");
             return false;
         }
 

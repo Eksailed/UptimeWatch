@@ -1,9 +1,10 @@
-@page "/monitors"
+﻿@page "/monitors"
 @attribute [Authorize]
 @* No prerender: the page loads data and subscribes to updates, which must happen once, in the circuit. *@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 
+@using System.Globalization
 @using UptimeWatch.Application
 @using UptimeWatch.Web.Realtime
 
@@ -12,9 +13,29 @@
 @inject MonitorUpdatesBroadcaster Updates
 @inject ILogger<Monitors> Logger
 
-<PageTitle>Мониторы</PageTitle>
+<PageTitle>@L["Monitors_Title"]</PageTitle>
 
-<h1>Мониторы</h1>
+<div class="page-head">
+    <h1>@L["Monitors_Title"]</h1>
+</div>
+
+@if (!loading && !loadFailed)
+{
+    <div class="summary" aria-label="@L["Monitors_Summary"]">
+        <div class="summary-item">
+            <span class="label">@L["Monitors_Total"]</span>
+            <span class="value">@monitors.Count</span>
+        </div>
+        <div class="summary-item is-ok">
+            <span class="label">@L["Monitors_Up"]</span>
+            <span class="value">@monitors.Count(m => m.Enabled && !m.IsDown)</span>
+        </div>
+        <div class="summary-item is-down">
+            <span class="label">@L["Monitors_Down"]</span>
+            <span class="value">@monitors.Count(m => m.Enabled && m.IsDown)</span>
+        </div>
+    </div>
+}
 
 <AddMonitorForm Busy="busy" OnSubmit="AddAsync" />
 
@@ -25,7 +46,7 @@
 
 @if (loading)
 {
-    <p>Загрузка...</p>
+    <div class="state-loading" role="status">@L["Common_Loading"]</div>
 }
 else if (loadFailed)
 {
@@ -33,63 +54,80 @@ else if (loadFailed)
 }
 else if (monitors.Count == 0)
 {
-    <p>Мониторов пока нет. Добавьте первый сайт выше.</p>
+    <div class="state-empty">
+        <strong>@L["Monitors_Empty_Title"]</strong>
+        @L["Monitors_Empty_Text"]
+    </div>
 }
 else
 {
-    <div class="row row-cols-1 row-cols-lg-2 g-3">
+    <div class="monitor-grid">
         @foreach (var monitor in monitors)
         {
-            <div class="col" @key="monitor.Id">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <h5 class="card-title text-break">
-                                <a href="monitors/@monitor.Id">@monitor.Url</a>
-                            </h5>
-                            @if (!monitor.Enabled)
-                            {
-                                <span class="badge bg-secondary">Пауза</span>
-                            }
-                            else if (monitor.IsDown)
-                            {
-                                <span class="badge bg-danger">Down</span>
-                            }
-                            else if (monitor.LastCheckedAt is null)
-                            {
-                                <span class="badge bg-secondary">Нет данных</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success">Up</span>
-                            }
-                        </div>
-                        <p class="card-text mb-1">
-                            Последняя проверка:
+            <article class="monitor-card @(monitor.Enabled && monitor.IsDown ? "is-down" : null)" @key="monitor.Id">
+                <div class="monitor-head">
+                    <span class="status-dot @StatusDotClass(monitor)" aria-hidden="true"></span>
+                    <div class="monitor-title">
+                        <a class="monitor-domain" href="monitors/@monitor.Id">@MonitorUrl.Domain(monitor.Url)</a>
+                        <span class="monitor-url">@monitor.Url</span>
+                    </div>
+                    <StatusBadge Monitor="monitor" />
+                </div>
+
+                <dl class="metrics">
+                    <div class="metric">
+                        <dt>@L["Monitors_Code"]</dt>
+                        <dd>@(monitor.LastStatusCode?.ToString() ?? "—")</dd>
+                    </div>
+                    <div class="metric">
+                        <dt>@L["Monitors_ResponseTime"]</dt>
+                        <dd>@(monitor.LastResponseTimeMs is { } ms ? L["Monitors_Ms", ms].Value : "—")</dd>
+                    </div>
+                    <div class="metric">
+                        <dt>@L["Monitors_Checked"]</dt>
+                        <dd>
                             @if (monitor.LastCheckedAt is { } checkedAt)
                             {
-                                <span>@checkedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC, код @(monitor.LastStatusCode?.ToString() ?? "—"), @monitor.LastResponseTimeMs мс</span>
+                                <time datetime="@checkedAt.ToString("O")">@UiFormat.Time(checkedAt)</time>
                             }
                             else
                             {
-                                <span>ещё не выполнялась</span>
+                                <span>@L["Monitors_NotChecked"]</span>
                             }
-                        </p>
-                        <p class="card-text mb-1">
-                            Аптайм: 24ч @FormatUptime(monitor.Uptime.Last24h), 7д @FormatUptime(monitor.Uptime.Last7d), 30д @FormatUptime(monitor.Uptime.Last30d)
-                        </p>
-                        <p class="card-text text-muted">
-                            Интервал @monitor.IntervalSeconds с, ожидаемый код @monitor.ExpectedStatusCode
-                        </p>
-                        <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => ToggleAsync(monitor)">
-                            @(monitor.Enabled ? "Пауза" : "Включить")
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="uptime-bars">
+                    <UptimeBar Label="@L["Monitors_Uptime24h"]" Value="monitor.Uptime.Last24h" />
+                    <UptimeBar Label="@L["Monitors_Uptime7d"]" Value="monitor.Uptime.Last7d" />
+                    <UptimeBar Label="@L["Monitors_Uptime30d"]" Value="monitor.Uptime.Last30d" />
+                </div>
+
+                <div class="monitor-foot">
+                    <span class="monitor-config">@L["Monitors_Config", monitor.IntervalSeconds, monitor.ExpectedStatusCode]</span>
+                    <div class="monitor-actions">
+                        <button class="btn btn-outline-secondary btn-icon" disabled="@busy" @onclick="() => ToggleAsync(monitor)"
+                                title="@(monitor.Enabled ? L["Monitors_PauseTitle"] : L["Monitors_ResumeTitle"])"
+                                aria-label="@(monitor.Enabled ? L["Monitors_Pause"] : L["Monitors_Resume"]): @MonitorUrl.Domain(monitor.Url)">
+                            @if (monitor.Enabled)
+                            {
+                                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1" /><rect x="9.5" y="3" width="3" height="10" rx="1" /></svg>
+                            }
+                            else
+                            {
+                                <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.2v9.6a.6.6 0 0 0 .9.5l7.6-4.8a.6.6 0 0 0 0-1L5.4 2.7a.6.6 0 0 0-.9.5z" /></svg>
+                            }
+                            @(monitor.Enabled ? L["Monitors_Pause"] : L["Monitors_Resume"])
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" disabled="@busy" @onclick="() => DeleteAsync(monitor)">
-                            Удалить
+                        <button class="btn btn-outline-danger btn-icon" disabled="@busy" @onclick="() => DeleteAsync(monitor)"
+                                title="@L["Monitors_DeleteTitle"]" aria-label="@L["Monitors_Delete"]: @MonitorUrl.Domain(monitor.Url)">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.6 9a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9L12 4" /></svg>
+                            @L["Monitors_Delete"]
                         </button>
                     </div>
                 </div>
-            </div>
+            </article>
         }
     </div>
 }
@@ -99,6 +137,8 @@ else
     private readonly List<MonitorStatusDto> pendingUpdates = [];
     private List<MonitorStatusDto> monitors = [];
     private IDisposable? subscription;
+    private CultureInfo culture = CultureInfo.CurrentCulture;
+    private CultureInfo uiCulture = CultureInfo.CurrentUICulture;
     private string? pageError;
     private bool loading = true;
     private bool loadFailed;
@@ -107,13 +147,17 @@ else
 
     protected override void OnInitialized()
     {
+        // The culture of the circuit, to render the updates pushed from the checker's thread in the same language.
+        culture = CultureInfo.CurrentCulture;
+        uiCulture = CultureInfo.CurrentUICulture;
+
         // Subscribe before loading, so an update published while the list is loading is not lost.
         subscription = Updates.Subscribe(CurrentUser.UserId, OnUpdateAsync);
     }
 
     protected override async Task OnInitializedAsync()
     {
-        pageError = await RunAsync(LoadAsync, "Не удалось загрузить мониторы.");
+        pageError = await RunAsync(LoadAsync, "Monitors_LoadFailed");
         loadFailed = pageError is not null;
         loading = false;
         foreach (var update in pendingUpdates)
@@ -150,6 +194,7 @@ else
                 return;
             }
 
+            using var scope = CultureScope.Enter(culture, uiCulture);
             ApplyUpdate(status);
             StateHasChanged();
         });
@@ -183,9 +228,9 @@ else
             }
             else
             {
-                validationError = result.Error;
+                validationError = result.Error is { } error ? L.Text(error) : null;
             }
-        }, "Не удалось добавить монитор.");
+        }, "Monitors_AddFailed");
 
         return validationError ?? failure;
     }
@@ -203,7 +248,7 @@ else
                     monitors[index] = monitors[index] with { Enabled = enabled };
                 }
             }
-        }, "Не удалось изменить состояние монитора.");
+        }, "Monitors_ToggleFailed");
     }
 
     private async Task DeleteAsync(MonitorStatusDto monitor)
@@ -214,18 +259,19 @@ else
             {
                 monitors.RemoveAll(m => m.Id == monitor.Id);
             }
-        }, "Не удалось удалить монитор.");
+        }, "Monitors_DeleteFailed");
     }
 
     /// <summary>
     /// The only way to touch the data from this page: one operation at a time, because the circuit shares one DbContext.
-    /// Returns null on success, otherwise the text to show; exceptions never escape into the circuit.
+    /// Returns null on success, otherwise the text to show (the resource <paramref name="failureKey"/> in the
+    /// current language; the key is what gets logged); exceptions never escape into the circuit.
     /// </summary>
-    private async Task<string?> RunAsync(Func<Task> action, string failureText)
+    private async Task<string?> RunAsync(Func<Task> action, string failureKey)
     {
         if (busy)
         {
-            return "Предыдущая операция ещё выполняется.";
+            return L["Common_Busy"];
         }
 
         busy = true;
@@ -242,8 +288,8 @@ else
                 return null;
             }
 
-            Logger.LogError(ex, "{Operation} failed", failureText);
-            return failureText;
+            Logger.LogError(ex, "{Operation} failed", failureKey);
+            return L[failureKey];
         }
         finally
         {
@@ -270,7 +316,8 @@ else
         monitors.Insert(index < 0 ? monitors.Count : index, created);
     }
 
-    private static string FormatUptime(double? value) => value is null ? "—" : $"{value.Value:0.##}%";
+    private static string StatusDotClass(MonitorStatusDto monitor) =>
+        !monitor.Enabled || (!monitor.IsDown && monitor.LastCheckedAt is null) ? "is-paused" : monitor.IsDown ? "is-down" : "is-up";
 
     public void Dispose()
     {

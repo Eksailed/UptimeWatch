@@ -18,7 +18,9 @@ public class SiteMonitorTests
     [Fact]
     public void Create_rejects_interval_below_30_seconds()
     {
-        Assert.Throws<DomainException>(() => SiteMonitor.Create("u", "https://example.com", 29, 200, T0));
+        var ex = Assert.Throws<DomainException>(() => SiteMonitor.Create("u", "https://example.com", 29, 200, T0));
+        Assert.Equal(ErrorCode.IntervalTooShort, ex.Error.Code);
+        Assert.Equal([MonitorLimits.MinIntervalSeconds], ex.Error.Args);
         var monitor = SiteMonitor.Create("u", "https://example.com", 30, 200, T0);
         Assert.Equal(30, monitor.IntervalSeconds);
     }
@@ -28,7 +30,18 @@ public class SiteMonitorTests
     [InlineData(600)]
     public void Create_rejects_expected_status_outside_100_599(int status)
     {
-        Assert.Throws<DomainException>(() => SiteMonitor.Create("u", "https://example.com", 60, status, T0));
+        var ex = Assert.Throws<DomainException>(() => SiteMonitor.Create("u", "https://example.com", 60, status, T0));
+        Assert.Equal(ErrorCode.ExpectedStatusOutOfRange, ex.Error.Code);
+        Assert.Equal([100, 599], ex.Error.Args);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void Create_rejects_blank_owner(string owner)
+    {
+        var ex = Assert.Throws<DomainException>(() => SiteMonitor.Create(owner, "https://example.com", 60, 200, T0));
+        Assert.Equal(ErrorCode.OwnerRequired, ex.Error.Code);
     }
 
     [Fact]
@@ -36,7 +49,8 @@ public class SiteMonitorTests
     {
         var ex = Assert.Throws<DomainException>(() => SiteMonitor.Create("u", "http://localhost", 60, 200, T0));
         Assert.False(UrlPolicy.TryValidate("http://localhost", out var error));
-        Assert.Equal(error, ex.Message);
+        Assert.Equal(error, ex.Error);
+        Assert.Equal(error!.Message, ex.Message);
     }
 
     [Fact]

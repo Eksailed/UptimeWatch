@@ -1,0 +1,38 @@
+.lang-switch {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--uw-border);
+    border-radius: 8px;
+    background: var(--uw-surface);
+    overflow: hidden;
+}
+
+.lang-switch-item {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--uw-muted);
+    text-decoration: none;
+    line-height: 1.4;
+}
+
+.lang-switch-item + .lang-switch-item {
+    border-left: 1px solid var(--uw-border);
+}
+
+.lang-switch-item:hover {
+    color: var(--uw-text);
+    background: var(--uw-paused-soft);
+    text-decoration: none;
+}
+
+.lang-switch-item.active {
+    color: var(--uw-accent);
+    background: var(--uw-accent-soft);
+}
+
+.lang-switch-item:focus-visible {
+    outline: none;
+    box-shadow: var(--uw-focus);
+}

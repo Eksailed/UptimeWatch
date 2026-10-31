@@ -19,7 +19,7 @@ public sealed class UserProfileStore(UserManager<ApplicationUser> users, AppDbCo
         var normalized = TelegramChatId.Normalize(chatId);
         if (!TelegramChatId.TryValidate(normalized, out var error))
         {
-            throw new ArgumentException(error, nameof(chatId));
+            throw new ArgumentException(error.Message, nameof(chatId));
         }
 
         var user = await users.FindByIdAsync(userId)

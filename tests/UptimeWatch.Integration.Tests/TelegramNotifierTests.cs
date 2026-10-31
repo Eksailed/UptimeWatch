@@ -1,3 +1,4 @@
+using System.Globalization;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using UptimeWatch.Application;
@@ -56,6 +57,32 @@ public sealed class TelegramNotifierTests
         }
 
         await _sender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Alerts_stay_russian_when_the_current_ui_culture_is_english()
+    {
+        HasChatId("12345");
+        var (monitor, incident) = Incident("https://example.com", "boom", TimeSpan.FromMinutes(5));
+        var previous = (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = new CultureInfo("en");
+
+            await _notifier.NotifyDownAsync(monitor, incident, Ct);
+            await _notifier.NotifyRecoveredAsync(monitor, incident, Ct);
+        }
+        finally
+        {
+            (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture) = previous;
+        }
+
+        var texts = _sender.ReceivedCalls().Select(c => (string)c.GetArguments()[1]!).ToList();
+        Assert.Equal(2, texts.Count);
+        Assert.Contains("Сайт недоступен", texts[0]);
+        Assert.Contains("Ошибка: boom", texts[0]);
+        Assert.Contains("Сайт снова доступен", texts[1]);
+        Assert.Contains("Время недоступности: 5 мин", texts[1]);
     }
 
     [Fact]

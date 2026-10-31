@@ -1,25 +1,23 @@
-@using System.ComponentModel.DataAnnotations
-
-<EditForm Model="input" OnValidSubmit="SubmitAsync" FormName="add-monitor" class="card card-body mb-4">
+<EditForm Model="input" OnValidSubmit="SubmitAsync" FormName="add-monitor" class="add-panel">
     <DataAnnotationsValidator />
     <div class="row g-2 align-items-end">
         <div class="col-lg-6">
-            <label for="monitor-url" class="form-label">Адрес сайта</label>
+            <label for="monitor-url" class="form-label">@L["Add_Url"]</label>
             <InputText id="monitor-url" class="form-control" @bind-Value="input.Url" placeholder="https://example.com" />
         </div>
         <div class="col-lg-2 col-6">
-            <label for="monitor-interval" class="form-label">Интервал, с</label>
-            <InputNumber id="monitor-interval" class="form-control" @bind-Value="input.IntervalSeconds" />
+            <label for="monitor-interval" class="form-label">@L["Add_Interval"]</label>
+            <InputNumber id="monitor-interval" class="form-control" @bind-Value="input.IntervalSeconds" ParsingErrorMessage="@L["Validation_Interval_Number"]" />
         </div>
         <div class="col-lg-2 col-6">
-            <label for="monitor-code" class="form-label">Ожидаемый код</label>
-            <InputNumber id="monitor-code" class="form-control" @bind-Value="input.ExpectedStatusCode" />
+            <label for="monitor-code" class="form-label">@L["Add_ExpectedCode"]</label>
+            <InputNumber id="monitor-code" class="form-control" @bind-Value="input.ExpectedStatusCode" ParsingErrorMessage="@L["Validation_ExpectedCode_Number"]" />
         </div>
         <div class="col-lg-2">
-            <button type="submit" class="btn btn-primary w-100" disabled="@Busy">Добавить</button>
+            <button type="submit" class="btn btn-primary w-100" disabled="@Busy">@L["Add_Submit"]</button>
         </div>
     </div>
-    <ValidationSummary class="text-danger mt-2" />
+    <ValidationSummary class="text-danger mt-2 mb-0" />
     @if (error is not null)
     {
         <div class="alert alert-danger mt-2 mb-0" role="alert">@error</div>
@@ -49,7 +47,7 @@
 
     private sealed class InputModel
     {
-        [Required(ErrorMessage = "Укажите адрес сайта.")]
+        [LocalizedRequired("Validation_Url_Required")]
         public string Url { get; set; } = string.Empty;
 
         public int IntervalSeconds { get; set; } = 60;

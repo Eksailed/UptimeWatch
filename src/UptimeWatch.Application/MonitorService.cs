@@ -15,13 +15,17 @@ public sealed class MonitorService(IMonitorRepository monitors, ICheckResultRepo
         }
         catch (DomainException ex)
         {
-            return new OperationResult<MonitorStatusDto>(null, ex.Message);
+            return new OperationResult<MonitorStatusDto>(null, ex.Error);
         }
 
         if (await monitors.CountByOwnerAsync(ownerId, ct) >= MonitorLimits.MaxMonitorsPerUser)
         {
             return new OperationResult<MonitorStatusDto>(
-                null, $"You can have at most {MonitorLimits.MaxMonitorsPerUser} monitors.");
+                null,
+                new ErrorInfo(
+                    ErrorCode.MonitorLimitReached,
+                    $"You can have at most {MonitorLimits.MaxMonitorsPerUser} monitors.",
+                    MonitorLimits.MaxMonitorsPerUser));
         }
 
         await monitors.AddAsync(monitor, ct);

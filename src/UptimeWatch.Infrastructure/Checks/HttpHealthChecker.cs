@@ -98,7 +98,7 @@ public sealed class HttpHealthChecker : IHealthChecker, IDisposable
         {
             if (!UrlPolicy.TryValidate(url, out var urlError))
             {
-                throw new CheckFailedException($"Request blocked: {urlError}");
+                throw new CheckFailedException($"Request blocked: {urlError.Message}");
             }
 
             var uri = new Uri(url);

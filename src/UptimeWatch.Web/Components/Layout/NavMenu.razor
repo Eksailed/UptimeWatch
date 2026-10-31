@@ -2,69 +2,51 @@
 
 @inject NavigationManager NavigationManager
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">UptimeWatch</a>
-    </div>
-</div>
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="" aria-label="UptimeWatch">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span class="brand-name">UptimeWatch</span>
+        </a>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+        <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-label="@L["Nav_Menu"]" />
+        <label for="nav-toggle" class="nav-toggle" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <path d="M3 5.5h14M3 10h14M3 14.5h14" />
+            </svg>
+        </label>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
+        <div class="nav-panel" onclick="if (event.target.closest('a')) document.getElementById('nav-toggle').checked = false">
+            <nav class="nav-links" aria-label="@L["Nav_Main"]">
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink class="nav-link-item" href="monitors">@L["Nav_Monitors"]</NavLink>
+                        <NavLink class="nav-link-item" href="profile">@L["Nav_Profile"]</NavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
+
+            <div class="nav-end">
+                <LanguageSwitcher />
+
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink class="nav-user" href="Account/Manage">@context.User.Identity?.Name</NavLink>
+                        <form action="Account/Logout" method="post" class="nav-logout">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">@L["Nav_Logout"]</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <NavLink class="nav-link-item" href="Account/Login">@L["Nav_Login"]</NavLink>
+                        <a class="btn btn-primary btn-sm" href="Account/Register">@L["Nav_Register"]</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="monitors">
-                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Monitors
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="profile">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Профиль
-                    </NavLink>
-                </div>
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+    </div>
+</header>
 
 @code {
     private string? currentUrl;

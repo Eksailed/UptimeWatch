@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
+    <NeutralLanguage>ru</NeutralLanguage>
     <UserSecretsId>aspnet-UptimeWatch.Web-01dbb0a7-1161-4168-b9af-b847d76b4752</UserSecretsId>
   </PropertyGroup>
 

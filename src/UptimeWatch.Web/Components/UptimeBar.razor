@@ -1,0 +1,26 @@
+<div class="uptime-bar">
+    <span class="uptime-bar-label">@Label</span>
+    <div class="uptime-bar-row">
+        <span class="uptime-track" role="img" aria-label="@Label: @ValueText">
+            @if (Value is { } percent)
+            {
+                <span class="uptime-fill @FillClass" style="width: @Width%"></span>
+            }
+        </span>
+        <span class="uptime-value">@ValueText</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public double? Value { get; set; }
+
+    private string ValueText => Value is null ? "—" : $"{Value.Value:0.##}%";
+
+    private string Width => Math.Clamp(Value ?? 0, 0, 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string FillClass => Value >= 99 ? string.Empty : Value >= 95 ? "is-warn" : "is-bad";
+}

@@ -1,0 +1,840 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    UptimeWatch UI texts. {0}, {1}, ... are format placeholders and must be the same in every language.
+    Keys are grouped by area: Common_, Nav_, Layout_, Home_, Monitors_, Details_, Profile_, Add_, Status_,
+    Error_ (domain error codes), Identity_ (ASP.NET Identity errors), Validation_ (form validation),
+    Account_/Login_/Register_/Manage_ (the account pages).
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_Loading" xml:space="preserve">
+    <value>Загрузка...</value>
+  </data>
+  <data name="Common_Busy" xml:space="preserve">
+    <value>Предыдущая операция ещё выполняется.</value>
+  </data>
+  <data name="Common_ErrorPrefix" xml:space="preserve">
+    <value>Ошибка:</value>
+  </data>
+  <data name="Nav_Language" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="Nav_Menu" xml:space="preserve">
+    <value>Меню</value>
+  </data>
+  <data name="Nav_Main" xml:space="preserve">
+    <value>Основная навигация</value>
+  </data>
+  <data name="Nav_Monitors" xml:space="preserve">
+    <value>Мониторы</value>
+  </data>
+  <data name="Nav_Profile" xml:space="preserve">
+    <value>Профиль</value>
+  </data>
+  <data name="Nav_Logout" xml:space="preserve">
+    <value>Выйти</value>
+  </data>
+  <data name="Nav_Login" xml:space="preserve">
+    <value>Войти</value>
+  </data>
+  <data name="Nav_Register" xml:space="preserve">
+    <value>Регистрация</value>
+  </data>
+  <data name="Layout_ErrorUi_Message" xml:space="preserve">
+    <value>Произошла ошибка.</value>
+  </data>
+  <data name="Layout_ErrorUi_Reload" xml:space="preserve">
+    <value>Перезагрузить</value>
+  </data>
+  <data name="Layout_ErrorUi_Dismiss" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Home_Hero_Title" xml:space="preserve">
+    <value>Узнайте, что сайт упал, раньше своих пользователей</value>
+  </data>
+  <data name="Home_Hero_Lead" xml:space="preserve">
+    <value>UptimeWatch проверяет ваши сайты по расписанию и присылает уведомление в Telegram, когда сайт падает или восстанавливается.</value>
+  </data>
+  <data name="Home_Cta_Monitors" xml:space="preserve">
+    <value>К мониторам</value>
+  </data>
+  <data name="Home_Cta_Register" xml:space="preserve">
+    <value>Создать аккаунт</value>
+  </data>
+  <data name="Home_Cta_Login" xml:space="preserve">
+    <value>Войти</value>
+  </data>
+  <data name="Home_Features_Label" xml:space="preserve">
+    <value>Возможности</value>
+  </data>
+  <data name="Home_Feature1_Title" xml:space="preserve">
+    <value>Проверки каждые 30 с и чаще</value>
+  </data>
+  <data name="Home_Feature1_Text" xml:space="preserve">
+    <value>Задайте интервал для каждого сайта и ожидаемый код ответа.</value>
+  </data>
+  <data name="Home_Feature2_Title" xml:space="preserve">
+    <value>Инциденты после 3 неудач</value>
+  </data>
+  <data name="Home_Feature2_Text" xml:space="preserve">
+    <value>Одиночный сбой не считается падением, поэтому ложных тревог меньше.</value>
+  </data>
+  <data name="Home_Feature3_Title" xml:space="preserve">
+    <value>Telegram-алерты</value>
+  </data>
+  <data name="Home_Feature3_Text" xml:space="preserve">
+    <value>Сообщение приходит, когда сайт упал и когда он снова работает.</value>
+  </data>
+  <data name="ErrorPage_Title" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="ErrorPage_Text" xml:space="preserve">
+    <value>Не удалось обработать запрос. Попробуйте ещё раз чуть позже.</value>
+  </data>
+  <data name="ErrorPage_RequestId" xml:space="preserve">
+    <value>Идентификатор запроса:</value>
+  </data>
+  <data name="ErrorPage_Home" xml:space="preserve">
+    <value>На главную</value>
+  </data>
+  <data name="Status_Up" xml:space="preserve">
+    <value>Работает</value>
+  </data>
+  <data name="Status_Down" xml:space="preserve">
+    <value>Недоступен</value>
+  </data>
+  <data name="Status_Paused" xml:space="preserve">
+    <value>Пауза</value>
+  </data>
+  <data name="Status_NoData" xml:space="preserve">
+    <value>Нет данных</value>
+  </data>
+  <data name="Add_Url" xml:space="preserve">
+    <value>Адрес сайта</value>
+  </data>
+  <data name="Add_Interval" xml:space="preserve">
+    <value>Интервал, с</value>
+  </data>
+  <data name="Add_ExpectedCode" xml:space="preserve">
+    <value>Ожидаемый код</value>
+  </data>
+  <data name="Add_Submit" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Monitors_Title" xml:space="preserve">
+    <value>Мониторы</value>
+  </data>
+  <data name="Monitors_Summary" xml:space="preserve">
+    <value>Сводка</value>
+  </data>
+  <data name="Monitors_Total" xml:space="preserve">
+    <value>Всего</value>
+  </data>
+  <data name="Monitors_Up" xml:space="preserve">
+    <value>Работают</value>
+  </data>
+  <data name="Monitors_Down" xml:space="preserve">
+    <value>Недоступны</value>
+  </data>
+  <data name="Monitors_Empty_Title" xml:space="preserve">
+    <value>Добавьте первый сайт</value>
+  </data>
+  <data name="Monitors_Empty_Text" xml:space="preserve">
+    <value>Укажите адрес в форме выше, и проверки начнутся автоматически.</value>
+  </data>
+  <data name="Monitors_Code" xml:space="preserve">
+    <value>Код</value>
+  </data>
+  <data name="Monitors_ResponseTime" xml:space="preserve">
+    <value>Время ответа</value>
+  </data>
+  <data name="Monitors_Ms" xml:space="preserve">
+    <value>{0} мс</value>
+  </data>
+  <data name="Monitors_Checked" xml:space="preserve">
+    <value>Проверка</value>
+  </data>
+  <data name="Monitors_NotChecked" xml:space="preserve">
+    <value>ещё не выполнялась</value>
+  </data>
+  <data name="Monitors_Uptime24h" xml:space="preserve">
+    <value>24ч</value>
+  </data>
+  <data name="Monitors_Uptime7d" xml:space="preserve">
+    <value>7д</value>
+  </data>
+  <data name="Monitors_Uptime30d" xml:space="preserve">
+    <value>30д</value>
+  </data>
+  <data name="Monitors_Config" xml:space="preserve">
+    <value>Интервал {0} с, ожидаемый код {1}</value>
+  </data>
+  <data name="Monitors_Pause" xml:space="preserve">
+    <value>Пауза</value>
+  </data>
+  <data name="Monitors_PauseTitle" xml:space="preserve">
+    <value>Поставить на паузу</value>
+  </data>
+  <data name="Monitors_Resume" xml:space="preserve">
+    <value>Включить</value>
+  </data>
+  <data name="Monitors_ResumeTitle" xml:space="preserve">
+    <value>Включить проверки</value>
+  </data>
+  <data name="Monitors_Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Monitors_DeleteTitle" xml:space="preserve">
+    <value>Удалить монитор</value>
+  </data>
+  <data name="Monitors_LoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить мониторы.</value>
+  </data>
+  <data name="Monitors_AddFailed" xml:space="preserve">
+    <value>Не удалось добавить монитор.</value>
+  </data>
+  <data name="Monitors_ToggleFailed" xml:space="preserve">
+    <value>Не удалось изменить состояние монитора.</value>
+  </data>
+  <data name="Monitors_DeleteFailed" xml:space="preserve">
+    <value>Не удалось удалить монитор.</value>
+  </data>
+  <data name="Details_Title" xml:space="preserve">
+    <value>Монитор</value>
+  </data>
+  <data name="Details_NotFound_Title" xml:space="preserve">
+    <value>Не найдено</value>
+  </data>
+  <data name="Details_NotFound_Text" xml:space="preserve">
+    <value>Такого монитора нет, либо он принадлежит другому аккаунту.</value>
+  </data>
+  <data name="Details_Uptime24h" xml:space="preserve">
+    <value>Аптайм 24ч</value>
+  </data>
+  <data name="Details_Uptime7d" xml:space="preserve">
+    <value>Аптайм 7д</value>
+  </data>
+  <data name="Details_Uptime30d" xml:space="preserve">
+    <value>Аптайм 30д</value>
+  </data>
+  <data name="Details_Incidents" xml:space="preserve">
+    <value>Инциденты (последние {0})</value>
+  </data>
+  <data name="Details_NoIncidents" xml:space="preserve">
+    <value>Инцидентов не было.</value>
+  </data>
+  <data name="Details_Incident_Ongoing" xml:space="preserve">
+    <value>Идёт</value>
+  </data>
+  <data name="Details_Incident_Resolved" xml:space="preserve">
+    <value>Завершён</value>
+  </data>
+  <data name="Details_Duration" xml:space="preserve">
+    <value>Длительность: {0}</value>
+  </data>
+  <data name="Details_Checks" xml:space="preserve">
+    <value>Последние проверки ({0})</value>
+  </data>
+  <data name="Details_NoChecks" xml:space="preserve">
+    <value>Проверок ещё не было.</value>
+  </data>
+  <data name="Details_Col_Time" xml:space="preserve">
+    <value>Время (UTC)</value>
+  </data>
+  <data name="Details_Col_Result" xml:space="preserve">
+    <value>Результат</value>
+  </data>
+  <data name="Details_Col_Code" xml:space="preserve">
+    <value>Код</value>
+  </data>
+  <data name="Details_Col_ResponseMs" xml:space="preserve">
+    <value>Время ответа, мс</value>
+  </data>
+  <data name="Details_Col_Error" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="Details_Result_Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Details_Result_Fail" xml:space="preserve">
+    <value>Сбой</value>
+  </data>
+  <data name="Profile_Title" xml:space="preserve">
+    <value>Профиль</value>
+  </data>
+  <data name="Profile_Telegram_Title" xml:space="preserve">
+    <value>Уведомления в Telegram</value>
+  </data>
+  <data name="Profile_Telegram_NotConfiguredBanner" xml:space="preserve">
+    <value>Telegram не настроен на сервере: уведомления не отправляются.</value>
+  </data>
+  <data name="Profile_Telegram_NotConfigured" xml:space="preserve">
+    <value>Telegram не настроен на сервере.</value>
+  </data>
+  <data name="Profile_Telegram_Help" xml:space="preserve">
+    <value>Напишите своему боту команду /start и укажите здесь chat_id: число (например, 123456789 или -1001234567890) или @имя_канала. Когда сайт упадёт или восстановится, бот пришлёт сообщение в этот чат.</value>
+  </data>
+  <data name="Profile_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Profile_SendTest" xml:space="preserve">
+    <value>Отправить тест</value>
+  </data>
+  <data name="Profile_Saved" xml:space="preserve">
+    <value>Сохранено.</value>
+  </data>
+  <data name="Profile_ChatIdRemoved" xml:space="preserve">
+    <value>chat_id удалён.</value>
+  </data>
+  <data name="Profile_ChatIdRequired" xml:space="preserve">
+    <value>Укажите chat_id.</value>
+  </data>
+  <data name="Profile_LoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить профиль.</value>
+  </data>
+  <data name="Profile_SaveFailed" xml:space="preserve">
+    <value>Не удалось сохранить профиль.</value>
+  </data>
+  <data name="Profile_RetryAfter" xml:space="preserve">
+    <value>Повторите через {0} с.</value>
+  </data>
+  <data name="Profile_TestSent" xml:space="preserve">
+    <value>Тестовое сообщение отправлено.</value>
+  </data>
+  <data name="Profile_TestFailed" xml:space="preserve">
+    <value>Не удалось отправить тестовое сообщение.</value>
+  </data>
+  <data name="Profile_TestFailedHttp" xml:space="preserve">
+    <value>Не удалось отправить тестовое сообщение (HTTP {0}). Проверьте chat_id и что вы написали боту /start.</value>
+  </data>
+  <data name="Profile_TestFailedUnavailable" xml:space="preserve">
+    <value>Не удалось отправить тестовое сообщение: Telegram недоступен.</value>
+  </data>
+  <data name="Error_OwnerRequired" xml:space="preserve">
+    <value>Не указан владелец.</value>
+  </data>
+  <data name="Error_UrlRequired" xml:space="preserve">
+    <value>Укажите адрес сайта.</value>
+  </data>
+  <data name="Error_UrlTooLong" xml:space="preserve">
+    <value>Адрес не должен быть длиннее {0} символов.</value>
+  </data>
+  <data name="Error_UrlNotAbsolute" xml:space="preserve">
+    <value>Укажите полный адрес, например https://example.com.</value>
+  </data>
+  <data name="Error_UrlSchemeNotAllowed" xml:space="preserve">
+    <value>Допустимы только адреса http и https.</value>
+  </data>
+  <data name="Error_UrlHasCredentials" xml:space="preserve">
+    <value>Адреса с логином и паролем не допускаются.</value>
+  </data>
+  <data name="Error_UrlNoHost" xml:space="preserve">
+    <value>В адресе нет имени хоста.</value>
+  </data>
+  <data name="Error_UrlLocalAddress" xml:space="preserve">
+    <value>Локальные адреса не допускаются.</value>
+  </data>
+  <data name="Error_UrlPrivateAddress" xml:space="preserve">
+    <value>Частные, loopback- и link-local-адреса не допускаются.</value>
+  </data>
+  <data name="Error_IntervalTooShort" xml:space="preserve">
+    <value>Интервал не может быть короче {0} с.</value>
+  </data>
+  <data name="Error_ExpectedStatusOutOfRange" xml:space="preserve">
+    <value>Ожидаемый код ответа должен быть от {0} до {1}.</value>
+  </data>
+  <data name="Error_MonitorLimitReached" xml:space="preserve">
+    <value>Можно создать не более {0} мониторов.</value>
+  </data>
+  <data name="Error_TelegramChatIdInvalid" xml:space="preserve">
+    <value>Неверный chat_id: укажите число (например, 123456789 или -1001234567890) или @имя_канала.</value>
+  </data>
+  <data name="Validation_Url_Required" xml:space="preserve">
+    <value>Укажите адрес сайта.</value>
+  </data>
+  <data name="Validation_Interval_Number" xml:space="preserve">
+    <value>Интервал должен быть числом.</value>
+  </data>
+  <data name="Validation_ExpectedCode_Number" xml:space="preserve">
+    <value>Ожидаемый код должен быть числом.</value>
+  </data>
+  <data name="Validation_Email_Required" xml:space="preserve">
+    <value>Укажите email.</value>
+  </data>
+  <data name="Validation_Email_Invalid" xml:space="preserve">
+    <value>Некорректный адрес email.</value>
+  </data>
+  <data name="Validation_Password_Required" xml:space="preserve">
+    <value>Укажите пароль.</value>
+  </data>
+  <data name="Validation_Password_Length" xml:space="preserve">
+    <value>Пароль должен содержать от {0} до {1} символов.</value>
+  </data>
+  <data name="Validation_Password_Mismatch" xml:space="preserve">
+    <value>Пароль и подтверждение не совпадают.</value>
+  </data>
+  <data name="Validation_Code_Required" xml:space="preserve">
+    <value>Укажите код.</value>
+  </data>
+  <data name="Validation_Code_Length" xml:space="preserve">
+    <value>Код должен содержать от {0} до {1} символов.</value>
+  </data>
+  <data name="Validation_RecoveryCode_Required" xml:space="preserve">
+    <value>Укажите код восстановления.</value>
+  </data>
+  <data name="Validation_Phone_Invalid" xml:space="preserve">
+    <value>Некорректный номер телефона.</value>
+  </data>
+  <data name="Identity_DefaultError" xml:space="preserve">
+    <value>Произошла неизвестная ошибка.</value>
+  </data>
+  <data name="Identity_ConcurrencyFailure" xml:space="preserve">
+    <value>Данные были изменены другим запросом. Повторите попытку.</value>
+  </data>
+  <data name="Identity_PasswordMismatch" xml:space="preserve">
+    <value>Неверный пароль.</value>
+  </data>
+  <data name="Identity_InvalidToken" xml:space="preserve">
+    <value>Недействительный токен.</value>
+  </data>
+  <data name="Identity_RecoveryCodeRedemptionFailed" xml:space="preserve">
+    <value>Не удалось использовать код восстановления.</value>
+  </data>
+  <data name="Identity_LoginAlreadyAssociated" xml:space="preserve">
+    <value>Пользователь с этим внешним входом уже существует.</value>
+  </data>
+  <data name="Identity_InvalidUserName" xml:space="preserve">
+    <value>Имя пользователя «{0}» недопустимо.</value>
+  </data>
+  <data name="Identity_InvalidEmail" xml:space="preserve">
+    <value>Email «{0}» недопустим.</value>
+  </data>
+  <data name="Identity_DuplicateUserName" xml:space="preserve">
+    <value>Имя пользователя «{0}» уже занято.</value>
+  </data>
+  <data name="Identity_DuplicateEmail" xml:space="preserve">
+    <value>Email «{0}» уже занят.</value>
+  </data>
+  <data name="Identity_InvalidRoleName" xml:space="preserve">
+    <value>Имя роли «{0}» недопустимо.</value>
+  </data>
+  <data name="Identity_DuplicateRoleName" xml:space="preserve">
+    <value>Роль «{0}» уже существует.</value>
+  </data>
+  <data name="Identity_UserAlreadyHasPassword" xml:space="preserve">
+    <value>У пользователя уже есть пароль.</value>
+  </data>
+  <data name="Identity_UserLockoutNotEnabled" xml:space="preserve">
+    <value>Для этого пользователя блокировка не включена.</value>
+  </data>
+  <data name="Identity_UserAlreadyInRole" xml:space="preserve">
+    <value>Пользователь уже состоит в роли «{0}».</value>
+  </data>
+  <data name="Identity_UserNotInRole" xml:space="preserve">
+    <value>Пользователь не состоит в роли «{0}».</value>
+  </data>
+  <data name="Identity_PasswordTooShort" xml:space="preserve">
+    <value>Пароль должен содержать не менее {0} символов.</value>
+  </data>
+  <data name="Identity_PasswordRequiresNonAlphanumeric" xml:space="preserve">
+    <value>Пароль должен содержать хотя бы один специальный символ.</value>
+  </data>
+  <data name="Identity_PasswordRequiresDigit" xml:space="preserve">
+    <value>Пароль должен содержать хотя бы одну цифру ('0'-'9').</value>
+  </data>
+  <data name="Identity_PasswordRequiresLower" xml:space="preserve">
+    <value>Пароль должен содержать хотя бы одну строчную букву ('a'-'z').</value>
+  </data>
+  <data name="Identity_PasswordRequiresUpper" xml:space="preserve">
+    <value>Пароль должен содержать хотя бы одну заглавную букву ('A'-'Z').</value>
+  </data>
+  <data name="Identity_PasswordRequiresUniqueChars" xml:space="preserve">
+    <value>Пароль должен содержать не менее {0} разных символов.</value>
+  </data>
+  <data name="Account_Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="Account_Password" xml:space="preserve">
+    <value>Пароль</value>
+  </data>
+  <data name="Account_ConfirmPassword" xml:space="preserve">
+    <value>Подтвердите пароль</value>
+  </data>
+  <data name="Account_UserLoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить пользователя с ID '{0}'.</value>
+  </data>
+  <data name="RecoveryCodes_Title" xml:space="preserve">
+    <value>Коды восстановления</value>
+  </data>
+  <data name="RecoveryCodes_Warning1" xml:space="preserve">
+    <value>Сохраните эти коды в надёжном месте.</value>
+  </data>
+  <data name="RecoveryCodes_Warning2" xml:space="preserve">
+    <value>Если вы потеряете устройство и у вас не будет кодов восстановления, вы потеряете доступ к аккаунту.</value>
+  </data>
+  <data name="External_None" xml:space="preserve">
+    <value>Внешние сервисы входа не настроены. См. {0}.</value>
+  </data>
+  <data name="External_NoneLink" xml:space="preserve">
+    <value>статью о том, как настроить вход через внешние сервисы</value>
+  </data>
+  <data name="External_LoginUsing" xml:space="preserve">
+    <value>Войти через аккаунт {0}</value>
+  </data>
+  <data name="Login_Title" xml:space="preserve">
+    <value>Вход</value>
+  </data>
+  <data name="Login_LocalAccount" xml:space="preserve">
+    <value>Войдите с помощью локального аккаунта.</value>
+  </data>
+  <data name="Login_RememberMe" xml:space="preserve">
+    <value>Запомнить меня</value>
+  </data>
+  <data name="Login_Submit" xml:space="preserve">
+    <value>Войти</value>
+  </data>
+  <data name="Login_RegisterLink" xml:space="preserve">
+    <value>Зарегистрироваться</value>
+  </data>
+  <data name="Login_External" xml:space="preserve">
+    <value>Или войдите через другой сервис.</value>
+  </data>
+  <data name="Login_Invalid" xml:space="preserve">
+    <value>Неверный email или пароль.</value>
+  </data>
+  <data name="Register_Title" xml:space="preserve">
+    <value>Регистрация</value>
+  </data>
+  <data name="Register_Create" xml:space="preserve">
+    <value>Создайте новый аккаунт.</value>
+  </data>
+  <data name="Register_Submit" xml:space="preserve">
+    <value>Зарегистрироваться</value>
+  </data>
+  <data name="Register_External" xml:space="preserve">
+    <value>Или зарегистрируйтесь через другой сервис.</value>
+  </data>
+  <data name="TwoFactor_Title" xml:space="preserve">
+    <value>Двухфакторная аутентификация</value>
+  </data>
+  <data name="Login2fa_Intro" xml:space="preserve">
+    <value>Ваш вход защищён приложением-аутентификатором. Введите код из приложения ниже.</value>
+  </data>
+  <data name="Login2fa_Code" xml:space="preserve">
+    <value>Код аутентификатора</value>
+  </data>
+  <data name="Login2fa_RememberMachine" xml:space="preserve">
+    <value>Запомнить это устройство</value>
+  </data>
+  <data name="Login2fa_NoDevice" xml:space="preserve">
+    <value>Нет доступа к устройству с аутентификатором? Вы можете {0}.</value>
+  </data>
+  <data name="Login2fa_UseRecoveryCode" xml:space="preserve">
+    <value>войти с кодом восстановления</value>
+  </data>
+  <data name="Login2fa_Invalid" xml:space="preserve">
+    <value>Неверный код аутентификатора.</value>
+  </data>
+  <data name="Recovery_Title" xml:space="preserve">
+    <value>Вход по коду восстановления</value>
+  </data>
+  <data name="Recovery_Intro" xml:space="preserve">
+    <value>Вы входите с кодом восстановления. Этот вход не будет запомнен, пока вы не введёте код из приложения-аутентификатора при входе или не отключите 2FA и не войдёте снова.</value>
+  </data>
+  <data name="Recovery_Code" xml:space="preserve">
+    <value>Код восстановления</value>
+  </data>
+  <data name="Recovery_Invalid" xml:space="preserve">
+    <value>Введён неверный код восстановления.</value>
+  </data>
+  <data name="Lockout_Title" xml:space="preserve">
+    <value>Аккаунт заблокирован</value>
+  </data>
+  <data name="Lockout_Text" xml:space="preserve">
+    <value>Аккаунт заблокирован, попробуйте позже.</value>
+  </data>
+  <data name="AccessDenied_Title" xml:space="preserve">
+    <value>Доступ запрещён</value>
+  </data>
+  <data name="AccessDenied_Text" xml:space="preserve">
+    <value>У вас нет доступа к этому ресурсу.</value>
+  </data>
+  <data name="InvalidUser_Title" xml:space="preserve">
+    <value>Недопустимый пользователь</value>
+  </data>
+  <data name="ExternalLogin_Associate" xml:space="preserve">
+    <value>Привяжите аккаунт {0}.</value>
+  </data>
+  <data name="ExternalLogin_Authenticated" xml:space="preserve">
+    <value>Вы успешно вошли через {0}.</value>
+  </data>
+  <data name="ExternalLogin_EnterEmail" xml:space="preserve">
+    <value>Укажите email для этого сайта и нажмите «Зарегистрироваться», чтобы завершить вход.</value>
+  </data>
+  <data name="ExternalLogin_ProviderError" xml:space="preserve">
+    <value>Ошибка внешнего провайдера: {0}</value>
+  </data>
+  <data name="ExternalLogin_LoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить данные внешнего входа.</value>
+  </data>
+  <data name="ExternalLogin_LoadFailedConfirmation" xml:space="preserve">
+    <value>Не удалось загрузить данные внешнего входа при подтверждении.</value>
+  </data>
+  <data name="Manage_Title" xml:space="preserve">
+    <value>Управление аккаунтом</value>
+  </data>
+  <data name="Manage_Subtitle" xml:space="preserve">
+    <value>Настройки аккаунта</value>
+  </data>
+  <data name="Manage_Nav_Profile" xml:space="preserve">
+    <value>Профиль</value>
+  </data>
+  <data name="Manage_Nav_Password" xml:space="preserve">
+    <value>Пароль</value>
+  </data>
+  <data name="Manage_Nav_ExternalLogins" xml:space="preserve">
+    <value>Внешние входы</value>
+  </data>
+  <data name="Manage_Nav_TwoFactor" xml:space="preserve">
+    <value>Двухфакторная аутентификация</value>
+  </data>
+  <data name="Manage_Nav_PersonalData" xml:space="preserve">
+    <value>Личные данные</value>
+  </data>
+  <data name="Manage_Index_Title" xml:space="preserve">
+    <value>Профиль</value>
+  </data>
+  <data name="Manage_Username" xml:space="preserve">
+    <value>Имя пользователя</value>
+  </data>
+  <data name="Manage_Phone" xml:space="preserve">
+    <value>Номер телефона</value>
+  </data>
+  <data name="Manage_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Manage_PhoneFailed" xml:space="preserve">
+    <value>Не удалось сохранить номер телефона.</value>
+  </data>
+  <data name="Manage_ProfileUpdated" xml:space="preserve">
+    <value>Профиль обновлён.</value>
+  </data>
+  <data name="Manage_ChangePassword_Title" xml:space="preserve">
+    <value>Смена пароля</value>
+  </data>
+  <data name="Manage_OldPassword" xml:space="preserve">
+    <value>Старый пароль</value>
+  </data>
+  <data name="Manage_NewPassword" xml:space="preserve">
+    <value>Новый пароль</value>
+  </data>
+  <data name="Manage_ChangePassword_Submit" xml:space="preserve">
+    <value>Обновить пароль</value>
+  </data>
+  <data name="Manage_PasswordChanged" xml:space="preserve">
+    <value>Пароль изменён.</value>
+  </data>
+  <data name="Manage_SetPassword_Title" xml:space="preserve">
+    <value>Установка пароля</value>
+  </data>
+  <data name="Manage_SetPassword_Info" xml:space="preserve">
+    <value>У вас нет локального имени пользователя и пароля для этого сайта. Добавьте локальный аккаунт, чтобы входить без внешнего сервиса.</value>
+  </data>
+  <data name="Manage_SetPassword_Submit" xml:space="preserve">
+    <value>Установить пароль</value>
+  </data>
+  <data name="Manage_PasswordSet" xml:space="preserve">
+    <value>Пароль установлен.</value>
+  </data>
+  <data name="Manage_Delete_Title" xml:space="preserve">
+    <value>Удаление личных данных</value>
+  </data>
+  <data name="Manage_Delete_Warning" xml:space="preserve">
+    <value>Удаление этих данных навсегда удалит ваш аккаунт, восстановить его будет невозможно.</value>
+  </data>
+  <data name="Manage_Delete_Submit" xml:space="preserve">
+    <value>Удалить данные и закрыть аккаунт</value>
+  </data>
+  <data name="Manage_Delete_WrongPassword" xml:space="preserve">
+    <value>Неверный пароль.</value>
+  </data>
+  <data name="Manage_ResetAuthenticatorLink" xml:space="preserve">
+    <value>сбросьте ключи аутентификатора</value>
+  </data>
+  <data name="Manage_Disable2fa_Title" xml:space="preserve">
+    <value>Отключение двухфакторной аутентификации (2FA)</value>
+  </data>
+  <data name="Manage_Disable2fa_Warning" xml:space="preserve">
+    <value>Это действие только отключает 2FA.</value>
+  </data>
+  <data name="Manage_Disable2fa_Note" xml:space="preserve">
+    <value>Отключение 2FA не меняет ключи в приложениях-аутентификаторах. Если нужно сменить ключ в приложении, {0}.</value>
+  </data>
+  <data name="Manage_Disable2fa_Submit" xml:space="preserve">
+    <value>Отключить 2FA</value>
+  </data>
+  <data name="Manage_Disable2fa_Done" xml:space="preserve">
+    <value>2FA отключена. Вы сможете включить её снова при настройке приложения-аутентификатора.</value>
+  </data>
+  <data name="Manage_Generate_Title" xml:space="preserve">
+    <value>Генерация кодов восстановления для двухфакторной аутентификации (2FA)</value>
+  </data>
+  <data name="Manage_Generate_Note" xml:space="preserve">
+    <value>Генерация новых кодов восстановления не меняет ключи в приложениях-аутентификаторах. Если нужно сменить ключ в приложении, {0}.</value>
+  </data>
+  <data name="Manage_Generate_Submit" xml:space="preserve">
+    <value>Сгенерировать коды восстановления</value>
+  </data>
+  <data name="Manage_Generate_Done" xml:space="preserve">
+    <value>Вы сгенерировали новые коды восстановления.</value>
+  </data>
+  <data name="Manage_PersonalData_Title" xml:space="preserve">
+    <value>Личные данные</value>
+  </data>
+  <data name="Manage_PersonalData_Text" xml:space="preserve">
+    <value>Ваш аккаунт содержит личные данные, которые вы нам передали. На этой странице их можно скачать или удалить.</value>
+  </data>
+  <data name="Manage_PersonalData_Download" xml:space="preserve">
+    <value>Скачать</value>
+  </data>
+  <data name="Manage_PersonalData_Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Manage_Reset_Title" xml:space="preserve">
+    <value>Сброс ключа аутентификатора</value>
+  </data>
+  <data name="Manage_Reset_Warning1" xml:space="preserve">
+    <value>Если сбросить ключ аутентификатора, приложение не будет работать, пока вы не настроите его заново.</value>
+  </data>
+  <data name="Manage_Reset_Warning2" xml:space="preserve">
+    <value>Это отключает 2FA, пока вы не подтвердите приложение-аутентификатор. Если не завершить настройку, вы можете потерять доступ к аккаунту.</value>
+  </data>
+  <data name="Manage_Reset_Done" xml:space="preserve">
+    <value>Ключ приложения-аутентификатора сброшен, настройте приложение с новым ключом.</value>
+  </data>
+  <data name="Manage_2fa_Title" xml:space="preserve">
+    <value>Двухфакторная аутентификация (2FA)</value>
+  </data>
+  <data name="Manage_2fa_NoCodes" xml:space="preserve">
+    <value>У вас не осталось кодов восстановления.</value>
+  </data>
+  <data name="Manage_2fa_NoCodesText" xml:space="preserve">
+    <value>Чтобы входить с кодом восстановления, нужно {0}.</value>
+  </data>
+  <data name="Manage_2fa_GenerateLink" xml:space="preserve">
+    <value>сгенерировать новый набор кодов восстановления</value>
+  </data>
+  <data name="Manage_2fa_OneCode" xml:space="preserve">
+    <value>У вас остался 1 код восстановления.</value>
+  </data>
+  <data name="Manage_2fa_OneCodeText" xml:space="preserve">
+    <value>Вы можете {0}.</value>
+  </data>
+  <data name="Manage_2fa_FewCodes" xml:space="preserve">
+    <value>Осталось кодов восстановления: {0}.</value>
+  </data>
+  <data name="Manage_2fa_FewCodesText" xml:space="preserve">
+    <value>Рекомендуем {0}.</value>
+  </data>
+  <data name="Manage_2fa_Forget" xml:space="preserve">
+    <value>Забыть этот браузер</value>
+  </data>
+  <data name="Manage_2fa_ResetCodes" xml:space="preserve">
+    <value>Сбросить коды восстановления</value>
+  </data>
+  <data name="Manage_2fa_App" xml:space="preserve">
+    <value>Приложение-аутентификатор</value>
+  </data>
+  <data name="Manage_2fa_AddApp" xml:space="preserve">
+    <value>Добавить приложение-аутентификатор</value>
+  </data>
+  <data name="Manage_2fa_SetupApp" xml:space="preserve">
+    <value>Настроить приложение-аутентификатор</value>
+  </data>
+  <data name="Manage_2fa_ResetApp" xml:space="preserve">
+    <value>Сбросить приложение-аутентификатор</value>
+  </data>
+  <data name="Manage_2fa_PolicyTitle" xml:space="preserve">
+    <value>Политика конфиденциальности и cookie не принята.</value>
+  </data>
+  <data name="Manage_2fa_PolicyText" xml:space="preserve">
+    <value>Чтобы включить двухфакторную аутентификацию, нужно принять политику.</value>
+  </data>
+  <data name="Manage_2fa_Forgotten" xml:space="preserve">
+    <value>Этот браузер забыт. При следующем входе из него потребуется код 2FA.</value>
+  </data>
+  <data name="Manage_Enable_Title" xml:space="preserve">
+    <value>Настройка приложения-аутентификатора</value>
+  </data>
+  <data name="Manage_Enable_Intro" xml:space="preserve">
+    <value>Чтобы использовать приложение-аутентификатор, выполните следующие шаги:</value>
+  </data>
+  <data name="Manage_Enable_Step1" xml:space="preserve">
+    <value>Скачайте приложение для двухфакторной аутентификации: Microsoft Authenticator ({0}, {1}) или Google Authenticator ({2}, {3}).</value>
+  </data>
+  <data name="Manage_Enable_Step2" xml:space="preserve">
+    <value>Отсканируйте QR-код или введите ключ {0} в приложение-аутентификатор. Пробелы и регистр не важны.</value>
+  </data>
+  <data name="Manage_Enable_QrHelp" xml:space="preserve">
+    <value>Узнайте, как {0}.</value>
+  </data>
+  <data name="Manage_Enable_QrHelpLink" xml:space="preserve">
+    <value>включить генерацию QR-кода</value>
+  </data>
+  <data name="Manage_Enable_Step3" xml:space="preserve">
+    <value>После сканирования QR-кода или ввода ключа приложение покажет уникальный код. Введите его в поле ниже.</value>
+  </data>
+  <data name="Manage_Enable_Code" xml:space="preserve">
+    <value>Код подтверждения</value>
+  </data>
+  <data name="Manage_Enable_Verify" xml:space="preserve">
+    <value>Подтвердить</value>
+  </data>
+  <data name="Manage_Enable_Invalid" xml:space="preserve">
+    <value>Неверный код подтверждения.</value>
+  </data>
+  <data name="Manage_Enable_Verified" xml:space="preserve">
+    <value>Приложение-аутентификатор подтверждено.</value>
+  </data>
+  <data name="Manage_Ext_Title" xml:space="preserve">
+    <value>Управление внешними входами</value>
+  </data>
+  <data name="Manage_Ext_Registered" xml:space="preserve">
+    <value>Подключённые входы</value>
+  </data>
+  <data name="Manage_Ext_Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Manage_Ext_RemoveTitle" xml:space="preserve">
+    <value>Удалить вход через {0} из аккаунта</value>
+  </data>
+  <data name="Manage_Ext_AddAnother" xml:space="preserve">
+    <value>Добавьте ещё один сервис для входа.</value>
+  </data>
+  <data name="Manage_Ext_NotRemoved" xml:space="preserve">
+    <value>Не удалось удалить внешний вход.</value>
+  </data>
+  <data name="Manage_Ext_Removed" xml:space="preserve">
+    <value>Внешний вход удалён.</value>
+  </data>
+  <data name="Manage_Ext_LoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить данные внешнего входа.</value>
+  </data>
+  <data name="Manage_Ext_NotAdded" xml:space="preserve">
+    <value>Внешний вход не добавлен. Внешний вход можно привязать только к одному аккаунту.</value>
+  </data>
+  <data name="Manage_Ext_Added" xml:space="preserve">
+    <value>Внешний вход добавлен.</value>
+  </data>
+</root>

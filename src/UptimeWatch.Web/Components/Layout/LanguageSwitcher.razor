@@ -1,0 +1,40 @@
+@implements IDisposable
+
+@inject NavigationManager NavigationManager
+
+@* Plain links (no enhanced navigation): the culture cookie has to be set by a full request, so that the Blazor circuit starts in the new language. *@
+<div class="lang-switch" role="group" aria-label="@L["Nav_Language"]">
+    @foreach (var language in SupportedLanguages.All)
+    {
+        var active = language.Code == current;
+        <a class="lang-switch-item @(active ? "active" : null)" lang="@language.Code" data-enhance-nav="false"
+           href="@Href(language.Code)" aria-current="@(active ? "true" : null)">@language.Label</a>
+    }
+</div>
+
+@code {
+    private string current = SupportedLanguages.Current;
+    private string path = "/";
+
+    protected override void OnInitialized()
+    {
+        path = PathOf(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private string Href(string code) =>
+        $"culture/set?culture={Uri.EscapeDataString(code)}&redirectUri={Uri.EscapeDataString(path)}";
+
+    private string PathOf(string uri) => "/" + NavigationManager.ToBaseRelativePath(uri);
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        path = PathOf(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

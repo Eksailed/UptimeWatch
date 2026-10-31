@@ -38,7 +38,7 @@ public class MonitorServiceTests
         var result = await _sut.CreateAsync("u1", "http://localhost", 60, 200, CancellationToken.None);
 
         Assert.Null(result.Value);
-        Assert.False(string.IsNullOrWhiteSpace(result.Error));
+        Assert.Equal(ErrorCode.UrlLocalAddress, result.Error?.Code);
         Assert.Empty(_repo.Items);
     }
 
@@ -54,7 +54,8 @@ public class MonitorServiceTests
         var result = await _sut.CreateAsync("u1", "https://example.com/extra", 60, 200, CancellationToken.None);
 
         Assert.Null(result.Value);
-        Assert.NotNull(result.Error);
+        Assert.Equal(ErrorCode.MonitorLimitReached, result.Error?.Code);
+        Assert.Equal([MonitorLimits.MaxMonitorsPerUser], result.Error!.Args);
         Assert.Equal(MonitorLimits.MaxMonitorsPerUser, _repo.Items.Count);
 
         var other = await _sut.CreateAsync("u2", "https://example.com/extra", 60, 200, CancellationToken.None);

@@ -2,7 +2,7 @@ using UptimeWatch.Domain;
 
 namespace UptimeWatch.Application;
 
-public sealed record OperationResult<T>(T? Value, string? Error);
+public sealed record OperationResult<T>(T? Value, ErrorInfo? Error);
 
 public sealed record UptimeDto(double? Last24h, double? Last7d, double? Last30d);
 

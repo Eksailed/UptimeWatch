@@ -9,8 +9,7 @@
 {
     <div>
         <p>
-            There are no external authentication services configured. See this <a href="https://go.microsoft.com/fwlink/?LinkID=532715">article
-            about setting up this ASP.NET application to support logging in via external services</a>.
+            @L.Html("External_None", LocalizerMarkup.Anchor(L["External_NoneLink"], "https://go.microsoft.com/fwlink/?LinkID=532715"))
         </p>
     </div>
 }
@@ -23,7 +22,7 @@ else
             <p>
                 @foreach (var provider in externalLogins)
                 {
-                    <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
+                    <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="@L["External_LoginUsing", provider.DisplayName ?? provider.Name]">@provider.DisplayName</button>
                 }
             </p>
         </div>

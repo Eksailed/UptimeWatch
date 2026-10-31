@@ -1,3 +1,5 @@
+using UptimeWatch.Domain;
+
 namespace UptimeWatch.Application.Tests;
 
 public sealed class TelegramChatIdTests
@@ -36,10 +38,11 @@ public sealed class TelegramChatIdTests
     [InlineData("@bad-name")]
     [InlineData("123\n456")]
     [InlineData("<b>1</b>")]
-    public void Invalid_values_are_rejected_with_a_message(string value)
+    public void Invalid_values_are_rejected_with_an_error_code(string value)
     {
         Assert.False(TelegramChatId.TryValidate(value, out var error));
-        Assert.False(string.IsNullOrEmpty(error));
+        Assert.Equal(ErrorCode.TelegramChatIdInvalid, error?.Code);
+        Assert.False(string.IsNullOrWhiteSpace(error!.Message));
     }
 
     [Fact]
