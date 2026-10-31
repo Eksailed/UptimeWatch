@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Localization;
 using UptimeWatch.Infrastructure.Identity;
+using UptimeWatch.Web.Localization;
 
 namespace UptimeWatch.Web.Components.Account;
 
-internal sealed class IdentityUserAccessor(UserManager<ApplicationUser> userManager, IdentityRedirectManager redirectManager)
+internal sealed class IdentityUserAccessor(
+    UserManager<ApplicationUser> userManager,
+    IdentityRedirectManager redirectManager,
+    IStringLocalizer<SharedResource> localizer)
 {
     public async Task<ApplicationUser> GetRequiredUserAsync(HttpContext context)
     {
@@ -11,7 +16,10 @@ internal sealed class IdentityUserAccessor(UserManager<ApplicationUser> userMana
 
         if (user is null)
         {
-            redirectManager.RedirectToWithStatus("Account/InvalidUser", $"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
+            redirectManager.RedirectToWithStatus(
+                "Account/InvalidUser",
+                localizer.ErrorMessage("Account_UserLoadFailed", userManager.GetUserId(context.User) ?? ""),
+                context);
         }
 
         return user;

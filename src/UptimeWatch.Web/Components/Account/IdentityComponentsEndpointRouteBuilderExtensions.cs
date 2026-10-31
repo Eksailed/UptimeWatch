@@ -5,10 +5,13 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Primitives;
+using UptimeWatch.Web;
 using UptimeWatch.Web.Components.Account.Pages;
 using UptimeWatch.Web.Components.Account.Pages.Manage;
 using UptimeWatch.Infrastructure.Identity;
+using UptimeWatch.Web.Localization;
 
 namespace Microsoft.AspNetCore.Routing;
 
@@ -74,12 +77,13 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
         manageGroup.MapPost("/DownloadPersonalData", async (
             HttpContext context,
             [FromServices] UserManager<ApplicationUser> userManager,
-            [FromServices] AuthenticationStateProvider authenticationStateProvider) =>
+            [FromServices] AuthenticationStateProvider authenticationStateProvider,
+            [FromServices] IStringLocalizer<SharedResource> localizer) =>
         {
             var user = await userManager.GetUserAsync(context.User);
             if (user is null)
             {
-                return Results.NotFound($"Unable to load user with ID '{userManager.GetUserId(context.User)}'.");
+                return Results.NotFound(localizer["Account_UserLoadFailed", userManager.GetUserId(context.User) ?? ""].Value);
             }
 
             var userId = await userManager.GetUserIdAsync(user);
