@@ -15,44 +15,48 @@
 
 <PageTitle>Профиль</PageTitle>
 
-<h1>Профиль</h1>
+<div class="narrow-card">
+    <h1>Профиль</h1>
 
-<h2 class="h4">Уведомления в Telegram</h2>
+    <h2>Уведомления в Telegram</h2>
 
-@if (!TelegramOptions.IsConfigured)
-{
-    <div class="alert alert-warning" role="alert">Telegram не настроен на сервере: уведомления не отправляются.</div>
-}
+    @if (!TelegramOptions.IsConfigured)
+    {
+        <div class="alert alert-warning" role="alert">Telegram не настроен на сервере: уведомления не отправляются.</div>
+    }
 
-<p class="text-muted">
-    Напишите своему боту команду /start и укажите здесь chat_id: число (например, 123456789 или -1001234567890)
-    или @@имя_канала. Когда сайт упадёт или восстановится, бот пришлёт сообщение в этот чат.
-</p>
+    <p class="text-muted">
+        Напишите своему боту команду /start и укажите здесь chat_id: число (например, 123456789 или -1001234567890)
+        или @@имя_канала. Когда сайт упадёт или восстановится, бот пришлёт сообщение в этот чат.
+    </p>
 
-@if (error is not null)
-{
-    <div class="alert alert-danger" role="alert">@error</div>
-}
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
 
-@if (info is not null)
-{
-    <div class="alert alert-success" role="status">@info</div>
-}
+    @if (info is not null)
+    {
+        <div class="alert alert-success" role="status">@info</div>
+    }
 
-@if (loading)
-{
-    <p>Загрузка...</p>
-}
-else
-{
-    <div class="mb-3" style="max-width: 28rem;">
-        <label class="form-label" for="chat-id">chat_id</label>
-        <input id="chat-id" class="form-control" maxlength="@TelegramChatId.MaxLength" autocomplete="off"
-               @bind="chatId" @bind:event="oninput" disabled="@busy" />
-    </div>
-    <button class="btn btn-primary" disabled="@busy" @onclick="SaveAsync">Сохранить</button>
-    <button class="btn btn-outline-secondary" disabled="@busy" @onclick="SendTestAsync">Отправить тест</button>
-}
+    @if (loading)
+    {
+        <div class="state-loading" role="status">Загрузка...</div>
+    }
+    else
+    {
+        <div class="mb-3">
+            <label class="form-label" for="chat-id">chat_id</label>
+            <input id="chat-id" class="form-control" maxlength="@TelegramChatId.MaxLength" autocomplete="off"
+                   @bind="chatId" @bind:event="oninput" disabled="@busy" />
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" disabled="@busy" @onclick="SaveAsync">Сохранить</button>
+            <button class="btn btn-outline-secondary" disabled="@busy" @onclick="SendTestAsync">Отправить тест</button>
+        </div>
+    }
+</div>
 
 @code {
     private readonly CancellationTokenSource cancellation = new();
