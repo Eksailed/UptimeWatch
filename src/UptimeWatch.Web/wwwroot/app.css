@@ -325,7 +325,7 @@ h1[tabindex]:focus-visible { box-shadow: none; }
 .table tbody tr:hover > * { background: #f8fafc; }
 
 .table-wrap .table td { white-space: nowrap; }
-.table-wrap .table td.text-break { white-space: normal; min-width: 20rem; }
+.table-wrap .table td.text-break { white-space: normal; min-width: 25rem; }
 
 .table-wrap {
     background: var(--uw-surface);
