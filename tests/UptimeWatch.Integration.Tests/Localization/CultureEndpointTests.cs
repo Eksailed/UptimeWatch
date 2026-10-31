@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 using UptimeWatch.Integration.Tests.Support;
@@ -82,6 +82,7 @@ public sealed class CultureEndpointTests(PostgresFixture postgres) : IAsyncLifet
     [InlineData("evil.example")]
     [InlineData("javascript:alert(1)")]
     [InlineData("%2Fok%0D%0ASet-Cookie:%20x=1")]
+    [InlineData("%2F%D1%84%D0%B0")]
     [InlineData("")]
     public async Task Redirect_targets_that_leave_the_site_fall_back_to_the_home_page(string redirectUri)
     {

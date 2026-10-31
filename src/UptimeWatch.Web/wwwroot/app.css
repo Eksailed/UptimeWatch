@@ -722,7 +722,3 @@ h1[tabindex]:focus-visible { box-shadow: none; }
     color: white;
 }
 
-    .blazor-error-boundary::after {
-        content: "Произошла ошибка."
-    }
-

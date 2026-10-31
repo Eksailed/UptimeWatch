@@ -37,7 +37,7 @@ public static class CultureEndpoints
 
     /// <summary>
     /// True only for a path on this site: it starts with a single '/', has no backslash (browsers treat it as '/',
-    /// so "/\host" would be "//host") and no control characters (header injection).
+    /// so "/\host" would be "//host") and no control or non-ASCII characters (header injection; Kestrel fails to write a non-ASCII Location header).
     /// </summary>
     internal static bool IsLocal(string? uri)
     {
@@ -51,6 +51,6 @@ public static class CultureEndpoints
             return false;
         }
 
-        return !uri.Any(c => c == '\\' || char.IsControl(c));
+        return !uri.Any(c => c == '\\' || char.IsControl(c) || c > 127);
     }
 }
