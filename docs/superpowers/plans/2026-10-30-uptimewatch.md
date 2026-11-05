@@ -1,16 +1,14 @@
-# UptimeWatch Implementation Plan
+# UptimeWatch — план реализации
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**Цель:** Собрать сервис мониторинга сайтов: фоновые HTTP-проверки, инциденты, живой дашборд, алерты в Telegram, пользователи.
 
-**Goal:** Собрать сервис мониторинга сайтов: фоновые HTTP-проверки, инциденты, живой дашборд, алерты в Telegram, пользователи.
+**Архитектура:** Модульный монолит по Clean Architecture (`Domain ← Application ← Infrastructure/Web`). Один процесс ASP.NET Core: Blazor Server, SignalR-хаб, фоновый сервис проверок. Состояние планировщика хранится в PostgreSQL, проверки идут через интерфейс `IHealthChecker`.
 
-**Architecture:** Модульный монолит по Clean Architecture (`Domain ← Application ← Infrastructure/Web`). Один процесс ASP.NET Core: Blazor Server, SignalR-хаб, фоновый сервис проверок. Состояние планировщика хранится в PostgreSQL, проверки идут через интерфейс `IHealthChecker`.
+**Технологии:** .NET 9, ASP.NET Core Blazor Server, SignalR, EF Core + Npgsql, ASP.NET Core Identity, xUnit, NSubstitute, Testcontainers.PostgreSql, Docker Compose, GitHub Actions.
 
-**Tech Stack:** .NET 9, ASP.NET Core Blazor Server, SignalR, EF Core + Npgsql, ASP.NET Core Identity, xUnit, NSubstitute, Testcontainers.PostgreSql, Docker Compose, GitHub Actions.
+**Спецификация:** `docs/superpowers/specs/2026-10-30-uptimewatch-design.md`
 
-**Spec:** `docs/superpowers/specs/2026-10-30-uptimewatch-design.md`
-
-## Global Constraints
+## Общие ограничения
 
 - Целевая платформа .NET 9, `Nullable` и `ImplicitUsings` включены, предупреждения считаются ошибками.
 - Зависимости направлены внутрь: `Web → Application ← Infrastructure`; `Domain` не ссылается ни на что (кроме BCL).
@@ -27,48 +25,48 @@
 - Время берётся из `TimeProvider`, а не из `DateTime.UtcNow` напрямую.
 - Состояние (`NextCheckAt`, открытые инциденты) хранится в БД; перезапуск ничего не теряет.
 
-## Review Focus
+## На что обратить внимание при ревью
 
 Входы и условия, которые спецификация подразумевает, но явно не описывает. Каждый закреплён тестом в указанной задаче.
 
-1. Имя хоста резолвится в приватный адрес, в IPv4-mapped IPv6 (`::ffff:127.0.0.1`), или среди нескольких адресов есть приватный; редирект ведёт на внутренний адрес. Ожидание: проверка заблокирована, сервис не падает (Task 4).
-2. Два тика планировщика подряд или перезапуск приложения посреди проверки. Ожидание: монитор не проверяется дважды одновременно и снова становится доступным после истечения аренды (Task 3, Task 5).
-3. Монитор удалён, пока его проверка в полёте. Ожидание: результат тихо отбрасывается, уведомлений нет, цикл продолжается (Task 2, Task 3).
-4. У пользователя не задан Telegram `chat_id`, токен бота пуст или Telegram отвечает ошибкой. Ожидание: алерт пропускается или логируется, инцидент всё равно сохраняется (Task 2, Task 8).
-5. Запрос чужого монитора по id и подписка на хаб другого пользователя. Ожидание: «не найдено» и ни одного чужого события (Task 2, Task 7).
+1. Имя хоста резолвится в приватный адрес, в IPv4-mapped IPv6 (`::ffff:127.0.0.1`), или среди нескольких адресов есть приватный; редирект ведёт на внутренний адрес. Ожидание: проверка заблокирована, сервис не падает (задача 4).
+2. Два тика планировщика подряд или перезапуск приложения посреди проверки. Ожидание: монитор не проверяется дважды одновременно и снова становится доступным после истечения аренды (задачи 3, 5).
+3. Монитор удалён, пока его проверка в полёте. Ожидание: результат тихо отбрасывается, уведомлений нет, цикл продолжается (задачи 2, 3).
+4. У пользователя не задан Telegram `chat_id`, токен бота пуст или Telegram отвечает ошибкой. Ожидание: алерт пропускается или логируется, инцидент всё равно сохраняется (задачи 2, 8).
+5. Запрос чужого монитора по id и подписка на хаб другого пользователя. Ожидание: «не найдено» и ни одного чужого события (задачи 2, 7).
 
 ---
 
-### Task 0: Каркас решения и CI
+### Задача 0: Каркас решения и CI
 
-**Files:**
-- Create: `UptimeWatch.sln`, `Directory.Build.props`, `.gitignore`, `.github/workflows/ci.yml`
-- Create: проекты `src/UptimeWatch.{Domain,Application,Infrastructure}` (classlib) и тестовые `tests/UptimeWatch.{Domain,Application,Integration}.Tests` (xunit)
-- Modify: `docs/superpowers/specs/2026-10-30-uptimewatch-design.md` (термин `Monitor` → `SiteMonitor` в разделе «Сущности»)
+**Файлы:**
+- Создать: `UptimeWatch.sln`, `Directory.Build.props`, `.gitignore`, `.github/workflows/ci.yml`
+- Создать: проекты `src/UptimeWatch.{Domain,Application,Infrastructure}` (classlib) и тестовые `tests/UptimeWatch.{Domain,Application,Integration}.Tests` (xunit)
+- Изменить: `docs/superpowers/specs/2026-10-30-uptimewatch-design.md` (термин `Monitor` → `SiteMonitor` в разделе «Сущности»)
 
-**Interfaces:**
-- Produces: решение, которое собирается; ссылки проектов по правилу зависимостей; пакеты тестов (`Microsoft.Extensions.TimeProvider.Testing` для `FakeTimeProvider` во всех тестовых проектах, `NSubstitute`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing`, `Microsoft.AspNetCore.SignalR.Client`) в `Integration.Tests`, `NSubstitute` в `Application.Tests`.
+**Интерфейсы:**
+- Предоставляет: решение, которое собирается; ссылки проектов по правилу зависимостей; пакеты тестов (`Microsoft.Extensions.TimeProvider.Testing` для `FakeTimeProvider` во всех тестовых проектах, `NSubstitute`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing`, `Microsoft.AspNetCore.SignalR.Client`) в `Integration.Tests`, `NSubstitute` в `Application.Tests`.
 
-- [ ] **Step 1:** Создать решение и проекты командами `dotnet new sln/classlib/xunit` в каталогах из списка выше. `UptimeWatch.Web` создаётся в Task 6, до этого в решении его нет.
-- [ ] **Step 2:** В `Directory.Build.props` задать `net9.0`, `Nullable=enable`, `ImplicitUsings=enable`, `TreatWarningsAsErrors=true`. Добавить ссылки: `Application → Domain`, `Infrastructure → Application`, тестовые проекты → тестируемые.
-- [ ] **Step 3:** `ci.yml`: триггеры `push` и `pull_request`; шаги checkout, `actions/setup-dotnet` с `9.0.x`, `dotnet restore`, `dotnet build --no-restore -c Release`, `dotnet test --no-build -c Release`. Раннер `ubuntu-latest` (там есть Docker для Testcontainers).
-- [ ] **Step 4: Run** `dotnet build -c Release`. Expected: `Build succeeded`, 0 warnings.
-- [ ] **Step 5: Commit**
+- [ ] **Шаг 1:** Создать решение и проекты командами `dotnet new sln/classlib/xunit` в каталогах из списка выше. `UptimeWatch.Web` создаётся в задаче 6, до этого в решении его нет.
+- [ ] **Шаг 2:** В `Directory.Build.props` задать `net9.0`, `Nullable=enable`, `ImplicitUsings=enable`, `TreatWarningsAsErrors=true`. Добавить ссылки: `Application → Domain`, `Infrastructure → Application`, тестовые проекты → тестируемые.
+- [ ] **Шаг 3:** `ci.yml`: триггеры `push` и `pull_request`; шаги checkout, `actions/setup-dotnet` с `9.0.x`, `dotnet restore`, `dotnet build --no-restore -c Release`, `dotnet test --no-build -c Release`. Раннер `ubuntu-latest` (там есть Docker для Testcontainers).
+- [ ] **Шаг 4: запустить** `dotnet build -c Release`. Ожидается: `Build succeeded`, 0 warnings.
+- [ ] **Шаг 5: закоммитить**
 
 ```bash
-git add -A && git commit -m "chore: scaffold solution and CI"
+git add -A && git commit -m "chore: каркас решения и CI"
 ```
 
 ---
 
-### Task 1: Доменная модель и правила
+### Задача 1: Доменная модель и правила
 
-**Files:**
-- Create: `src/UptimeWatch.Domain/{MonitorLimits,SiteMonitor,CheckResult,Incident,IncidentTransition,DomainException,UrlPolicy,IpAddressPolicy}.cs`
-- Test: `tests/UptimeWatch.Domain.Tests/{SiteMonitorTests,UrlPolicyTests,IpAddressPolicyTests}.cs`
+**Файлы:**
+- Создать: `src/UptimeWatch.Domain/{MonitorLimits,SiteMonitor,CheckResult,Incident,IncidentTransition,DomainException,UrlPolicy,IpAddressPolicy}.cs`
+- Тесты: `tests/UptimeWatch.Domain.Tests/{SiteMonitorTests,UrlPolicyTests,IpAddressPolicyTests}.cs`
 
-**Interfaces:**
-- Produces:
+**Интерфейсы:**
+- Предоставляет:
 
 ```csharp
 public static class MonitorLimits { public const int MinIntervalSeconds = 30, FailureThreshold = 3, MaxMonitorsPerUser = 20, MaxUrlLength = 2048; }
@@ -91,7 +89,7 @@ public static class UrlPolicy { public static bool TryValidate(string? url, out 
 public static class IpAddressPolicy { public static bool IsPublic(System.Net.IPAddress address); }
 ```
 
-- [ ] **Step 1: Write failing tests** `SiteMonitorTests`:
+- [ ] **Шаг 1: написать падающие тесты** `SiteMonitorTests`:
   - `Create_rejects_interval_below_30_seconds` (29 → `DomainException`, 30 принимается)
   - `Create_rejects_expected_status_outside_100_599` (99 и 600 → исключение)
   - `Create_rejects_url_that_fails_UrlPolicy`
@@ -102,24 +100,24 @@ public static class IpAddressPolicy { public static bool IsPublic(System.Net.IPA
   - `ApplyResult_success_closes_incident` (`Closed`, `EndedAt == now`, `Duration` = разница, `OpenIncident is null`, `ConsecutiveFailures == 0`)
   - `ApplyResult_sets_NextCheckAt_to_now_plus_interval`
   - `SetEnabled_true_makes_monitor_due_immediately`
-- [ ] **Step 1b:** `UrlPolicyTests` (theory). Принимает: `http://example.com`, `https://example.com/p?x=1`. Отклоняет с непустым `error`: `""`, `null`, `example.com`, `ftp://x.com`, `file:///etc/passwd`, `javascript:alert(1)`, `http://user:pass@example.com`, `http://localhost`, `http://127.0.0.1:8080`, `http://[::1]/`, `http://10.0.0.5`, строку длиной 2049.
-- [ ] **Step 1c:** `IpAddressPolicyTests` (theory). `IsPublic == true`: `8.8.8.8`, `2606:4700:4700::1111`. `false`: `127.0.0.1`, `10.0.0.1`, `172.16.0.1`, `192.168.1.1`, `169.254.169.254`, `0.0.0.0`, `100.64.0.1`, `::1`, `fe80::1`, `fc00::1`, `::ffff:127.0.0.1`, `::ffff:10.0.0.1`.
-- [ ] **Step 2: Run** `dotnet test tests/UptimeWatch.Domain.Tests`. Expected: FAIL (типы не определены).
-- [ ] **Step 3: Implement** типы из блока Interfaces. `UrlPolicy`: хост-литерал IP и `localhost` проверяются через `IpAddressPolicy` (DNS здесь не вызывается, он проверяется при соединении в Task 4). `IpAddressPolicy`: для IPv4-mapped IPv6 сначала `MapToIPv4()`.
-- [ ] **Step 4: Run** те же тесты. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(domain): monitor, incident rules and URL/IP policies`
+- [ ] **Шаг 1b:** `UrlPolicyTests` (theory). Принимает: `http://example.com`, `https://example.com/p?x=1`. Отклоняет с непустым `error`: `""`, `null`, `example.com`, `ftp://x.com`, `file:///etc/passwd`, `javascript:alert(1)`, `http://user:pass@example.com`, `http://localhost`, `http://127.0.0.1:8080`, `http://[::1]/`, `http://10.0.0.5`, строку длиной 2049.
+- [ ] **Шаг 1c:** `IpAddressPolicyTests` (theory). `IsPublic == true`: `8.8.8.8`, `2606:4700:4700::1111`. `false`: `127.0.0.1`, `10.0.0.1`, `172.16.0.1`, `192.168.1.1`, `169.254.169.254`, `0.0.0.0`, `100.64.0.1`, `::1`, `fe80::1`, `fc00::1`, `::ffff:127.0.0.1`, `::ffff:10.0.0.1`.
+- [ ] **Шаг 2: запустить** `dotnet test tests/UptimeWatch.Domain.Tests`. Ожидается: FAIL (типы не определены).
+- [ ] **Шаг 3: реализовать** типы из блока «Интерфейсы». `UrlPolicy`: хост-литерал IP и `localhost` проверяются через `IpAddressPolicy` (DNS здесь не вызывается, он проверяется при соединении в задаче 4). `IpAddressPolicy`: для IPv4-mapped IPv6 сначала `MapToIPv4()`.
+- [ ] **Шаг 4: запустить** те же тесты. Ожидается: PASS.
+- [ ] **Шаг 5: закоммитить** `feat(domain): монитор, правила инцидентов и политики URL/IP`
 
 ---
 
-### Task 2: Application — интерфейсы и сценарии
+### Задача 2: Application — интерфейсы и сценарии
 
-**Files:**
-- Create: `src/UptimeWatch.Application/{Abstractions.cs,Dtos.cs,MonitorService.cs,CheckProcessor.cs,CheckRunner.cs}`
-- Test: `tests/UptimeWatch.Application.Tests/{Fakes/InMemoryMonitorRepository.cs,MonitorServiceTests.cs,CheckProcessorTests.cs,CheckRunnerTests.cs}`
+**Файлы:**
+- Создать: `src/UptimeWatch.Application/{Abstractions.cs,Dtos.cs,MonitorService.cs,CheckProcessor.cs,CheckRunner.cs}`
+- Тесты: `tests/UptimeWatch.Application.Tests/{Fakes/InMemoryMonitorRepository.cs,MonitorServiceTests.cs,CheckProcessorTests.cs,CheckRunnerTests.cs}`
 
-**Interfaces:**
-- Consumes: типы Task 1.
-- Produces:
+**Интерфейсы:**
+- Использует: типы задачи 1.
+- Предоставляет:
 
 ```csharp
 public interface IMonitorRepository {
@@ -174,7 +172,7 @@ public sealed class CheckRunner(IServiceScopeFactory scopes, TimeProvider time) 
 
 `MonitorStatusDto` собирается внутри `MonitorService` и `CheckProcessor` одним общим приватным методом-построителем (аптайм по трём окнам, последний результат). По 3 запроса на монитор допустимы из-за лимита в 20 мониторов на пользователя.
 
-- [ ] **Step 1: Write failing tests** `MonitorServiceTests` (in-memory репозиторий, `FakeTimeProvider`):
+- [ ] **Шаг 1: написать падающие тесты** `MonitorServiceTests` (in-memory репозиторий, `FakeTimeProvider`):
   - `Create_persists_monitor_for_owner_and_returns_dto`
   - `Create_returns_error_for_invalid_url_and_does_not_persist` (`http://localhost`)
   - `Create_returns_error_when_owner_already_has_20_monitors`
@@ -182,7 +180,7 @@ public sealed class CheckRunner(IServiceScopeFactory scopes, TimeProvider time) 
   - `Delete_by_other_owner_returns_false_and_keeps_monitor`
   - `List_returns_only_owners_monitors`
   - `SetEnabled_by_other_owner_returns_false`
-- [ ] **Step 1b:** `CheckProcessorTests` (NSubstitute для `IHealthChecker`, `INotifier`, `IMonitorNotifications`):
+- [ ] **Шаг 1b:** `CheckProcessorTests` (NSubstitute для `IHealthChecker`, `INotifier`, `IMonitorNotifications`):
   - `Process_saves_result_and_publishes_status_to_owner`
   - `Process_third_failure_opens_incident_and_calls_NotifyDown_once`
   - `Process_fourth_failure_does_not_notify_again`
@@ -190,50 +188,50 @@ public sealed class CheckRunner(IServiceScopeFactory scopes, TimeProvider time) 
   - `Process_swallows_notifier_exception_and_state_is_still_saved`
   - `Process_does_not_notify_or_publish_when_SaveCheck_returns_false` (монитор удалён в полёте)
   - `Process_does_not_throw_when_health_checker_throws` (логирует, состояние не меняется)
-- [ ] **Step 1c:** `CheckRunnerTests` (DI-контейнер с заглушками):
+- [ ] **Шаг 1c:** `CheckRunnerTests` (DI-контейнер с заглушками):
   - `RunDue_never_runs_more_than_20_checks_concurrently` (50 мониторов, `IHealthChecker` с задержкой и счётчиком; пик ≤ 20)
   - `RunDue_continues_when_one_check_throws`
-- [ ] **Step 2: Run** `dotnet test tests/UptimeWatch.Application.Tests`. Expected: FAIL.
-- [ ] **Step 3: Implement** по сигнатурам. Подсказки: ошибки `DomainException` из `SiteMonitor.Create` и `UrlPolicy` превращаются в `OperationResult.Error`; `CheckProcessor` вызывает `INotifier` только после успешного `SaveCheckAsync` и оборачивает уведомления в `try/catch` с логированием; `CheckRunner` создаёт scope на каждую проверку и ограничивает параллелизм `SemaphoreSlim(20)`.
-- [ ] **Step 4: Run** те же тесты. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(application): monitor service, check processor and runner`
+- [ ] **Шаг 2: запустить** `dotnet test tests/UptimeWatch.Application.Tests`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать** по сигнатурам. Подсказки: ошибки `DomainException` из `SiteMonitor.Create` и `UrlPolicy` превращаются в `OperationResult.Error`; `CheckProcessor` вызывает `INotifier` только после успешного `SaveCheckAsync` и оборачивает уведомления в `try/catch` с логированием; `CheckRunner` создаёт scope на каждую проверку и ограничивает параллелизм `SemaphoreSlim(20)`.
+- [ ] **Шаг 4: запустить** те же тесты. Ожидается: PASS.
+- [ ] **Шаг 5: закоммитить** `feat(application): сервис мониторов, обработчик и запуск проверок`
 
 ---
 
-### Task 3: Персистентность (EF Core + PostgreSQL)
+### Задача 3: Персистентность (EF Core + PostgreSQL)
 
 **Предусловие:** на машине установлен и запущен Docker Desktop (нужен для Testcontainers).
 
-**Files:**
-- Create: `src/UptimeWatch.Infrastructure/Persistence/{AppDbContext,MonitorRepository,CheckResultRepository}.cs`, `.../Identity/ApplicationUser.cs`, `.../DependencyInjection.cs`, `.config/dotnet-tools.json` (dotnet-ef)
-- Create: `src/UptimeWatch.Infrastructure/Persistence/Migrations/*` (генерируется)
-- Test: `tests/UptimeWatch.Integration.Tests/{PostgresFixture.cs,MonitorRepositoryTests.cs,CheckResultRepositoryTests.cs}`
+**Файлы:**
+- Создать: `src/UptimeWatch.Infrastructure/Persistence/{AppDbContext,MonitorRepository,CheckResultRepository}.cs`, `.../Identity/ApplicationUser.cs`, `.../DependencyInjection.cs`, `.config/dotnet-tools.json` (dotnet-ef)
+- Создать: `src/UptimeWatch.Infrastructure/Persistence/Migrations/*` (генерируется)
+- Тесты: `tests/UptimeWatch.Integration.Tests/{PostgresFixture.cs,MonitorRepositoryTests.cs,CheckResultRepositoryTests.cs}`
 
-**Interfaces:**
-- Consumes: `IMonitorRepository`, `ICheckResultRepository` (Task 2); сущности Task 1.
-- Produces: `AppDbContext : IdentityDbContext<ApplicationUser>` с `DbSet<SiteMonitor> Monitors`, `DbSet<CheckResult> CheckResults`, `DbSet<Incident> Incidents`; `ApplicationUser : IdentityUser { string? TelegramChatId }`; `IServiceCollection.AddInfrastructure(IConfiguration)` — регистрирует контекст (строка `ConnectionStrings:Default`), репозитории и `TimeProvider.System`; `PostgresFixture` (контейнер `postgres:17`, `IAsyncLifetime`, метод `AppDbContext CreateContext()` с применёнными миграциями).
+**Интерфейсы:**
+- Использует: `IMonitorRepository`, `ICheckResultRepository` (задача 2); сущности задачи 1.
+- Предоставляет: `AppDbContext : IdentityDbContext<ApplicationUser>` с `DbSet<SiteMonitor> Monitors`, `DbSet<CheckResult> CheckResults`, `DbSet<Incident> Incidents`; `ApplicationUser : IdentityUser { string? TelegramChatId }`; `IServiceCollection.AddInfrastructure(IConfiguration)` — регистрирует контекст (строка `ConnectionStrings:Default`), репозитории и `TimeProvider.System`; `PostgresFixture` (контейнер `postgres:17`, `IAsyncLifetime`, метод `AppDbContext CreateContext()` с применёнными миграциями).
 
-- [ ] **Step 1: Write failing tests** (на реальном PostgreSQL):
+- [ ] **Шаг 1: написать падающие тесты** (на реальном PostgreSQL):
   - `MonitorRepositoryTests`: `Get_filters_by_owner`; `ClaimDue_returns_only_enabled_monitors_with_NextCheckAt_in_the_past_ordered_by_NextCheckAt`; `ClaimDue_called_twice_returns_each_monitor_once` (параллельные вызовы через `Task.WhenAll`); `ClaimDue_monitor_becomes_due_again_after_lease_expires`; `SaveCheck_persists_result_state_and_opened_incident_together`; `SaveCheck_closes_incident_and_stores_EndedAt`; `SaveCheck_returns_false_when_monitor_was_deleted`; `Delete_cascades_results_and_incidents`; `Delete_by_other_owner_returns_false`.
   - `CheckResultRepositoryTests`: `Uptime_is_75_percent_for_3_successes_and_1_failure_in_window`; `Uptime_ignores_results_older_than_window`; `Uptime_is_null_without_results`; `DeleteOlderThan_removes_only_results_before_cutoff`.
-- [ ] **Step 2: Run** `dotnet test tests/UptimeWatch.Integration.Tests --filter "FullyQualifiedName~Repository"`. Expected: FAIL.
-- [ ] **Step 3: Implement** маппинг и репозитории. Подходы: `ClaimDueAsync` — один SQL-запрос `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED) RETURNING` через `FromSqlInterpolated`/`ExecuteSql`; `SaveCheckAsync` — транзакция, при отсутствии монитора возвращает `false` (ловить `DbUpdateConcurrencyException`/проверять наличие). Индексы: `CheckResults(MonitorId, CheckedAt)`, `Monitors(OwnerId)`, `Monitors(NextCheckAt)`. Каскадное удаление результатов и инцидентов. Время хранить как `timestamp with time zone` в UTC.
-- [ ] **Step 4:** Установить `dotnet tool install dotnet-ef` локально (манифест), сгенерировать миграцию `InitialCreate` командой `dotnet ef migrations add InitialCreate -p src/UptimeWatch.Infrastructure -o Persistence/Migrations` (для запуска нужен стартовый проект; на этом этапе используйте `IDesignTimeDbContextFactory<AppDbContext>` в Infrastructure).
-- [ ] **Step 5: Run** тесты из Step 2. Expected: PASS.
-- [ ] **Step 6: Commit** `feat(infra): EF Core persistence with atomic claim and save`
+- [ ] **Шаг 2: запустить** `dotnet test tests/UptimeWatch.Integration.Tests --filter "FullyQualifiedName~Repository"`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать** маппинг и репозитории. Подходы: `ClaimDueAsync` — один SQL-запрос `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED) RETURNING` через `FromSqlInterpolated`/`ExecuteSql`; `SaveCheckAsync` — транзакция, при отсутствии монитора возвращает `false` (ловить `DbUpdateConcurrencyException`/проверять наличие). Индексы: `CheckResults(MonitorId, CheckedAt)`, `Monitors(OwnerId)`, `Monitors(NextCheckAt)`. Каскадное удаление результатов и инцидентов. Время хранить как `timestamp with time zone` в UTC.
+- [ ] **Шаг 4:** Установить `dotnet tool install dotnet-ef` локально (манифест), сгенерировать миграцию `InitialCreate` командой `dotnet ef migrations add InitialCreate -p src/UptimeWatch.Infrastructure -o Persistence/Migrations` (для запуска нужен стартовый проект; на этом этапе используйте `IDesignTimeDbContextFactory<AppDbContext>` в Infrastructure).
+- [ ] **Шаг 5: запустить** тесты из шага 2. Ожидается: PASS.
+- [ ] **Шаг 6: закоммитить** `feat(infra): хранение в EF Core с атомарным захватом и сохранением`
 
 ---
 
-### Task 4: HTTP-проверка с защитой от SSRF
+### Задача 4: HTTP-проверка с защитой от SSRF
 
-**Files:**
-- Create: `src/UptimeWatch.Infrastructure/Checks/{HealthCheckerOptions,AddressGuard,HttpHealthChecker}.cs`
-- Modify: `src/UptimeWatch.Infrastructure/DependencyInjection.cs` (именованный `HttpClient` и регистрация `IHealthChecker`)
-- Test: `tests/UptimeWatch.Integration.Tests/{AddressGuardTests.cs,HttpHealthCheckerTests.cs,Support/TestSite.cs}`
+**Файлы:**
+- Создать: `src/UptimeWatch.Infrastructure/Checks/{HealthCheckerOptions,AddressGuard,HttpHealthChecker}.cs`
+- Изменить: `src/UptimeWatch.Infrastructure/DependencyInjection.cs` (именованный `HttpClient` и регистрация `IHealthChecker`)
+- Тесты: `tests/UptimeWatch.Integration.Tests/{AddressGuardTests.cs,HttpHealthCheckerTests.cs,Support/TestSite.cs}`
 
-**Interfaces:**
-- Consumes: `IHealthChecker`, `IpAddressPolicy`, `CheckResult.Create`.
-- Produces:
+**Интерфейсы:**
+- Использует: `IHealthChecker`, `IpAddressPolicy`, `CheckResult.Create`.
+- Предоставляет:
 
 ```csharp
 public sealed class HealthCheckerOptions { TimeSpan Timeout = 10s; int MaxResponseBytes = 262144; int MaxRedirects = 5; bool AllowPrivateAddresses = false; }
@@ -248,14 +246,14 @@ public sealed class HttpHealthChecker : IHealthChecker { /* SocketsHttpHandler.C
 
 `TestSite` — вспомогательный Kestrel-сервер на случайном loopback-порту с управляемыми маршрутами (`/ok`, `/status/{code}`, `/slow`, `/endless`); для тестов используется `AllowPrivateAddresses = true`.
 
-- [ ] **Step 1: Write failing tests** `AddressGuardTests` (поддельный `IDnsResolver`):
+- [ ] **Шаг 1: написать падающие тесты** `AddressGuardTests` (поддельный `IDnsResolver`):
   - `Throws_when_host_resolves_to_loopback` (`127.0.0.1`)
   - `Throws_when_host_resolves_to_ipv4_mapped_private` (`::ffff:10.0.0.1`)
   - `Throws_when_any_of_several_addresses_is_private` (`8.8.8.8` + `192.168.1.1`)
   - `Throws_for_private_ip_literal_without_calling_resolver`
   - `Returns_addresses_when_all_are_public` (`93.184.216.34`)
   - `Allows_private_when_allowPrivate_is_true`
-- [ ] **Step 1b:** `HttpHealthCheckerTests` (с `TestSite`):
+- [ ] **Шаг 1b:** `HttpHealthCheckerTests` (с `TestSite`):
   - `Check_succeeds_with_status_and_elapsed_ms_when_code_matches`
   - `Check_fails_when_status_differs_from_expected` (`Error` содержит фактический код)
   - `Check_follows_redirect_to_expected_target`
@@ -264,126 +262,126 @@ public sealed class HttpHealthChecker : IHealthChecker { /* SocketsHttpHandler.C
   - `Check_fails_on_unresolvable_host` (`nonexistent.invalid`)
   - `Check_is_blocked_for_loopback_when_private_addresses_not_allowed` (`Error` содержит `blocked`, исключение не вылетает)
   - `Check_reads_at_most_MaxResponseBytes_from_endless_body` (завершается в пределах таймаута, `Success == true`)
-- [ ] **Step 2: Run** `dotnet test tests/UptimeWatch.Integration.Tests --filter "FullyQualifiedName~AddressGuard|FullyQualifiedName~HttpHealthChecker"`. Expected: FAIL.
-- [ ] **Step 3: Implement.** `HttpHealthChecker` ловит `HttpRequestException`, `TaskCanceledException` (таймаут), `BlockedAddressException` и превращает их в неуспешный `CheckResult` с понятным `Error`; время ответа меряется `Stopwatch`; тело читается потоково до `MaxResponseBytes` и отбрасывается; отмена по `ct` приложения отличается от таймаута проверки.
-- [ ] **Step 4: Run** тесты из Step 2. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(infra): HTTP health checker with SSRF guard`
+- [ ] **Шаг 2: запустить** `dotnet test tests/UptimeWatch.Integration.Tests --filter "FullyQualifiedName~AddressGuard|FullyQualifiedName~HttpHealthChecker"`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать.** `HttpHealthChecker` ловит `HttpRequestException`, `TaskCanceledException` (таймаут), `BlockedAddressException` и превращает их в неуспешный `CheckResult` с понятным `Error`; время ответа меряется `Stopwatch`; тело читается потоково до `MaxResponseBytes` и отбрасывается; отмена по `ct` приложения отличается от таймаута проверки.
+- [ ] **Шаг 4: запустить** тесты из шага 2. Ожидается: PASS.
+- [ ] **Шаг 5: закоммитить** `feat(infra): HTTP-проверка с защитой от SSRF`
 
 ---
 
-### Task 5: Полный цикл проверки
+### Задача 5: Полный цикл проверки
 
-**Files:**
-- Test: `tests/UptimeWatch.Integration.Tests/FullCycleTests.cs`
-- Modify: `src/UptimeWatch.Infrastructure/DependencyInjection.cs` (если тесту не хватает регистраций)
+**Файлы:**
+- Тесты: `tests/UptimeWatch.Integration.Tests/FullCycleTests.cs`
+- Изменить: `src/UptimeWatch.Infrastructure/DependencyInjection.cs` (если тесту не хватает регистраций)
 
-**Interfaces:**
-- Consumes: `CheckRunner.RunDueAsync`, `MonitorService`, `HttpHealthChecker`, `PostgresFixture`, `TestSite`.
-- Produces: проверенный сквозной сценарий «монитор → проверка → инцидент → уведомление» без веб-слоя. Хостед-сервисы `MonitorScheduler` и `RetentionCleaner` добавляются в Task 6 как тонкие обёртки над уже протестированной логикой.
+**Интерфейсы:**
+- Использует: `CheckRunner.RunDueAsync`, `MonitorService`, `HttpHealthChecker`, `PostgresFixture`, `TestSite`.
+- Предоставляет: проверенный сквозной сценарий «монитор → проверка → инцидент → уведомление» без веб-слоя. Хостед-сервисы `MonitorScheduler` и `RetentionCleaner` добавляются в задаче 6 как тонкие обёртки над уже протестированной логикой.
 
-- [ ] **Step 1: Write failing tests** `FullCycleTests` (реальный PostgreSQL + `HttpHealthChecker` + `TestSite` + `INotifier` на NSubstitute + `FakeTimeProvider`, мониторы создаются через `MonitorService`):
+- [ ] **Шаг 1: написать падающие тесты** `FullCycleTests` (реальный PostgreSQL + `HttpHealthChecker` + `TestSite` + `INotifier` на NSubstitute + `FakeTimeProvider`, мониторы создаются через `MonitorService`):
   - `Full_cycle_three_failures_open_incident_and_recovery_closes_it` (сайт отвечает 500 три цикла → `NotifyDown` ровно 1 раз и `OpenIncident` сохранён; затем 200 → `NotifyRecovered` 1 раз с `Duration > 0`; промежуточные тики не вызывают повторных алертов)
   - `RunDue_checks_only_due_monitors` (монитор с интервалом 60 с не проверяется повторно через 10 с)
   - `Two_overlapping_RunDue_calls_check_each_monitor_once` (`Task.WhenAll`, счётчик запросов `TestSite` равен числу мониторов)
   - `Disabled_monitor_is_never_checked`
-- [ ] **Step 2: Run** `dotnet test tests/UptimeWatch.Integration.Tests --filter "FullyQualifiedName~FullCycle"`. Expected: FAIL.
-- [ ] **Step 3: Implement** недостающие регистрации; если тесты проходят сразу, менять код не нужно.
-- [ ] **Step 4: Run** те же тесты. Expected: PASS.
-- [ ] **Step 5: Commit** `test: full check cycle against real PostgreSQL`
+- [ ] **Шаг 2: запустить** `dotnet test tests/UptimeWatch.Integration.Tests --filter "FullyQualifiedName~FullCycle"`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать** недостающие регистрации; если тесты проходят сразу, менять код не нужно.
+- [ ] **Шаг 4: запустить** те же тесты. Ожидается: PASS.
+- [ ] **Шаг 5: закоммитить** `test: полный цикл проверки на реальной PostgreSQL`
 
 ---
 
-### Task 6: Web-оболочка и Identity
+### Задача 6: Web-оболочка и Identity
 
-**Files:**
-- Create: `src/UptimeWatch.Web` (Blazor Server) через `dotnet new blazor --interactivity Server --auth Individual`; добавить в решение; ссылки на `Application` и `Infrastructure`
-- Modify: `Program.cs` (подключить `AddInfrastructure`, Identity на `AppDbContext`, `TimeProvider`, хостед-сервисы Task 5, применение миграций при старте), удалить SQLite-миграции шаблона и шаблонный `ApplicationDbContext`
-- Create: `src/UptimeWatch.Web/Auth/CurrentUser.cs`, `src/UptimeWatch.Web/Background/{MonitorScheduler,RetentionCleaner}.cs`
-- Test: `tests/UptimeWatch.Integration.Tests/{WebAppFactory.cs,AuthTests.cs}`
+**Файлы:**
+- Создать: `src/UptimeWatch.Web` (Blazor Server) через `dotnet new blazor --interactivity Server --auth Individual`; добавить в решение; ссылки на `Application` и `Infrastructure`
+- Изменить: `Program.cs` (подключить `AddInfrastructure`, Identity на `AppDbContext`, `TimeProvider`, хостед-сервисы задача 5, применение миграций при старте), удалить SQLite-миграции шаблона и шаблонный `ApplicationDbContext`
+- Создать: `src/UptimeWatch.Web/Auth/CurrentUser.cs`, `src/UptimeWatch.Web/Background/{MonitorScheduler,RetentionCleaner}.cs`
+- Тесты: `tests/UptimeWatch.Integration.Tests/{WebAppFactory.cs,AuthTests.cs}`
 
-**Interfaces:**
-- Consumes: `AppDbContext`, `ApplicationUser`, `ICurrentUser`, `CheckRunner.RunDueAsync`, `ICheckResultRepository.DeleteOlderThanAsync`.
-- Produces: `MonitorScheduler : BackgroundService` (цикл: `RunDueAsync`, пауза 5 с; исключения логируются, цикл не прерывается; корректная остановка по токену); `RetentionCleaner : BackgroundService` (раз в сутки удаляет результаты старше 30 дней); `CurrentUser : ICurrentUser` (берёт id из `AuthenticationStateProvider`/`IHttpContextAccessor`, бросает при анонимном пользователе); `WebAppFactory : WebApplicationFactory<Program>` (подключается к контейнеру `PostgresFixture`, `Telegram:BotToken` пуст); `public partial class Program`.
+**Интерфейсы:**
+- Использует: `AppDbContext`, `ApplicationUser`, `ICurrentUser`, `CheckRunner.RunDueAsync`, `ICheckResultRepository.DeleteOlderThanAsync`.
+- Предоставляет: `MonitorScheduler : BackgroundService` (цикл: `RunDueAsync`, пауза 5 с; исключения логируются, цикл не прерывается; корректная остановка по токену); `RetentionCleaner : BackgroundService` (раз в сутки удаляет результаты старше 30 дней); `CurrentUser : ICurrentUser` (берёт id из `AuthenticationStateProvider`/`IHttpContextAccessor`, бросает при анонимном пользователе); `WebAppFactory : WebApplicationFactory<Program>` (подключается к контейнеру `PostgresFixture`, `Telegram:BotToken` пуст); `public partial class Program`.
 
-- [ ] **Step 1: Write failing tests** `AuthTests`:
+- [ ] **Шаг 1: написать падающие тесты** `AuthTests`:
   - `Anonymous_request_to_monitors_page_redirects_to_login` (код 302/`Location` содержит `/Account/Login`)
   - `Registered_user_can_sign_in_with_password` (через `UserManager`/`SignInManager`)
   - `Duplicate_email_registration_is_rejected`
   - `App_starts_without_telegram_token` (фабрика создаётся, `GET /` отвечает)
-- [ ] **Step 2: Run** `dotnet test --filter "FullyQualifiedName~AuthTests"`. Expected: FAIL.
-- [ ] **Step 3: Implement** по списку Files. Страница `/monitors` помечается `[Authorize]`; регистрация и вход берутся из шаблона Identity.
-- [ ] **Step 4: Run** тесты из Step 2 и `dotnet build`. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(web): Blazor shell with Identity`
+- [ ] **Шаг 2: запустить** `dotnet test --filter "FullyQualifiedName~AuthTests"`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать** по списку Files. Страница `/monitors` помечается `[Authorize]`; регистрация и вход берутся из шаблона Identity.
+- [ ] **Шаг 4: запустить** тесты из шаг 2 и `dotnet build`. Ожидается: PASS.
+- [ ] **Шаг 5: закоммитить** `feat(web): Blazor-оболочка с Identity`
 
 ---
 
-### Task 7: Дашборд и SignalR
+### Задача 7: Дашборд и SignalR
 
-**Files:**
-- Create: `src/UptimeWatch.Web/Hubs/MonitorHub.cs`, `src/UptimeWatch.Web/Realtime/SignalRMonitorNotifications.cs`
-- Create: `src/UptimeWatch.Web/Components/Pages/{Monitors,MonitorDetails}.razor` и компонент формы `AddMonitorForm.razor`
-- Test: `tests/UptimeWatch.Integration.Tests/MonitorHubTests.cs`
+**Файлы:**
+- Создать: `src/UptimeWatch.Web/Hubs/MonitorHub.cs`, `src/UptimeWatch.Web/Realtime/SignalRMonitorNotifications.cs`
+- Создать: `src/UptimeWatch.Web/Components/Pages/{Monitors,MonitorDetails}.razor` и компонент формы `AddMonitorForm.razor`
+- Тесты: `tests/UptimeWatch.Integration.Tests/MonitorHubTests.cs`
 
-**Interfaces:**
-- Consumes: `MonitorService`, `ICheckResultRepository`, `IMonitorNotifications`, `ICurrentUser`.
-- Produces: `MonitorHub` (`[Authorize]`, при подключении добавляет соединение в группу `owner-{userId}`); клиентское событие `MonitorUpdated(MonitorStatusDto)`; `SignalRMonitorNotifications : IMonitorNotifications` отправляет событие в группу владельца; маршрут хаба `/hubs/monitors`.
+**Интерфейсы:**
+- Использует: `MonitorService`, `ICheckResultRepository`, `IMonitorNotifications`, `ICurrentUser`.
+- Предоставляет: `MonitorHub` (`[Authorize]`, при подключении добавляет соединение в группу `owner-{userId}`); клиентское событие `MonitorUpdated(MonitorStatusDto)`; `SignalRMonitorNotifications : IMonitorNotifications` отправляет событие в группу владельца; маршрут хаба `/hubs/monitors`.
 
-- [ ] **Step 1: Write failing tests** `MonitorHubTests` (`WebAppFactory`, два пользователя, `HubConnection` с cookie-аутентификацией):
+- [ ] **Шаг 1: написать падающие тесты** `MonitorHubTests` (`WebAppFactory`, два пользователя, `HubConnection` с cookie-аутентификацией):
   - `Update_for_owner_A_is_received_by_A`
   - `Update_for_owner_A_is_not_received_by_B`
   - `Anonymous_connection_to_hub_is_rejected`
-- [ ] **Step 2: Run** `dotnet test --filter "FullyQualifiedName~MonitorHub"`. Expected: FAIL.
-- [ ] **Step 3: Implement** хаб, `SignalRMonitorNotifications` и регистрацию в `Program.cs`. Страница `Monitors.razor`: список карточек (URL, бейдж Up/Down, последний код и время ответа, аптайм 24ч/7д/30д), форма добавления (ошибки из `OperationResult.Error` показываются рядом с формой), кнопки «Пауза/Включить» и «Удалить»; компонент подписывается на `MonitorUpdated` и обновляет карточку без перезагрузки, отписывается в `DisposeAsync`. `MonitorDetails.razor`: последние 50 результатов и 20 инцидентов монитора (чужой id → «Не найдено»).
-- [ ] **Step 4: Run** тесты из Step 2. Expected: PASS.
-- [ ] **Step 5: Verify вручную:** запустить `dotnet run --project src/UptimeWatch.Web` (PostgreSQL из Task 9 или временный контейнер), зарегистрироваться, добавить `https://example.com` с интервалом 30 с и убедиться, что карточка обновляется без перезагрузки; добавить `https://example.com/404` с ожидаемым кодом 200 и увидеть статус Down после трёх проверок.
-- [ ] **Step 6: Commit** `feat(web): live dashboard with SignalR`
+- [ ] **Шаг 2: запустить** `dotnet test --filter "FullyQualifiedName~MonitorHub"`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать** хаб, `SignalRMonitorNotifications` и регистрацию в `Program.cs`. Страница `Monitors.razor`: список карточек (URL, бейдж Up/Down, последний код и время ответа, аптайм 24ч/7д/30д), форма добавления (ошибки из `OperationResult.Error` показываются рядом с формой), кнопки «Пауза/Включить» и «Удалить»; компонент подписывается на `MonitorUpdated` и обновляет карточку без перезагрузки, отписывается в `DisposeAsync`. `MonitorDetails.razor`: последние 50 результатов и 20 инцидентов монитора (чужой id → «Не найдено»).
+- [ ] **Шаг 4: запустить** тесты из шага 2. Ожидается: PASS.
+- [ ] **Шаг 5: проверить вручную:** запустить `dotnet run --project src/UptimeWatch.Web` (PostgreSQL из задачи 9 или временный контейнер), зарегистрироваться, добавить `https://example.com` с интервалом 30 с и убедиться, что карточка обновляется без перезагрузки; добавить `https://example.com/404` с ожидаемым кодом 200 и увидеть статус Down после трёх проверок.
+- [ ] **Шаг 6: закоммитить** `feat(web): живой дашборд на SignalR`
 
 ---
 
-### Task 8: Telegram-алерты и профиль
+### Задача 8: Telegram-алерты и профиль
 
-**Files:**
-- Create: `src/UptimeWatch.Application/ITelegramSender.cs`, `src/UptimeWatch.Infrastructure/Notifications/{TelegramOptions,TelegramSender,TelegramNotifier,NullNotifier}.cs`, `src/UptimeWatch.Infrastructure/Identity/UserProfileStore.cs`
-- Create: `src/UptimeWatch.Web/Components/Pages/Profile.razor`
-- Test: `tests/UptimeWatch.Integration.Tests/{TelegramSenderTests.cs,TelegramNotifierTests.cs}`
+**Файлы:**
+- Создать: `src/UptimeWatch.Application/ITelegramSender.cs`, `src/UptimeWatch.Infrastructure/Notifications/{TelegramOptions,TelegramSender,TelegramNotifier,NullNotifier}.cs`, `src/UptimeWatch.Infrastructure/Identity/UserProfileStore.cs`
+- Создать: `src/UptimeWatch.Web/Components/Pages/Profile.razor`
+- Тесты: `tests/UptimeWatch.Integration.Tests/{TelegramSenderTests.cs,TelegramNotifierTests.cs}`
 
-**Interfaces:**
-- Consumes: `INotifier`, `IUserProfileStore`.
-- Produces: `interface ITelegramSender { Task SendAsync(string chatId, string text, CancellationToken ct); }`; `TelegramSender` (POST `https://api.telegram.org/bot{token}/sendMessage`, JSON `chat_id` и `text`, на не-2xx бросает исключение); `TelegramNotifier : INotifier` (собирает текст, ищет `chat_id` владельца через `IUserProfileStore`); `NullNotifier : INotifier` (логирует предупреждение) регистрируется, если `Telegram:BotToken` пуст; `UserProfileStore : IUserProfileStore` на `UserManager<ApplicationUser>`.
+**Интерфейсы:**
+- Использует: `INotifier`, `IUserProfileStore`.
+- Предоставляет: `interface ITelegramSender { Task SendAsync(string chatId, string text, CancellationToken ct); }`; `TelegramSender` (POST `https://api.telegram.org/bot{token}/sendMessage`, JSON `chat_id` и `text`, на не-2xx бросает исключение); `TelegramNotifier : INotifier` (собирает текст, ищет `chat_id` владельца через `IUserProfileStore`); `NullNotifier : INotifier` (логирует предупреждение) регистрируется, если `Telegram:BotToken` пуст; `UserProfileStore : IUserProfileStore` на `UserManager<ApplicationUser>`.
 
-- [ ] **Step 1: Write failing tests:**
+- [ ] **Шаг 1: написать падающие тесты:**
   - `TelegramSenderTests` (заглушка `HttpMessageHandler`): `Sender_posts_chat_id_and_text_to_bot_endpoint`; `Sender_throws_on_non_success_status`.
-  - `TelegramNotifierTests` (`ITelegramSender` и `IUserProfileStore` на NSubstitute): `Notifier_skips_silently_when_user_has_no_chat_id`; `Down_message_contains_url_and_last_error`; `Recovered_message_contains_url_and_downtime_duration`; `Notifier_propagates_sender_exception` (перехватывает `CheckProcessor`, см. Task 2).
-- [ ] **Step 2: Run** `dotnet test --filter "FullyQualifiedName~Telegram"`. Expected: FAIL.
-- [ ] **Step 3: Implement.** Регистрация в `AddInfrastructure`: при непустом токене `TelegramNotifier`, иначе `NullNotifier`. `Profile.razor`: поле `chat_id`, кнопка «Сохранить» и «Отправить тест»; сообщение об ошибке отправки показывается пользователю. Инструкция в README (Task 9): как создать бота у BotFather и узнать `chat_id`; токен задаётся `dotnet user-secrets set "Telegram:BotToken" "<token>"`.
-- [ ] **Step 4: Run** тесты из Step 2. Expected: PASS.
-- [ ] **Step 5: Commit** `feat: Telegram alerts and profile page`
+  - `TelegramNotifierTests` (`ITelegramSender` и `IUserProfileStore` на NSubstitute): `Notifier_skips_silently_when_user_has_no_chat_id`; `Down_message_contains_url_and_last_error`; `Recovered_message_contains_url_and_downtime_duration`; `Notifier_propagates_sender_exception` (перехватывает `CheckProcessor`, см. задачу 2).
+- [ ] **Шаг 2: запустить** `dotnet test --filter "FullyQualifiedName~Telegram"`. Ожидается: FAIL.
+- [ ] **Шаг 3: реализовать.** Регистрация в `AddInfrastructure`: при непустом токене `TelegramNotifier`, иначе `NullNotifier`. `Profile.razor`: поле `chat_id`, кнопка «Сохранить» и «Отправить тест»; сообщение об ошибке отправки показывается пользователю. Инструкция в README (задача 9): как создать бота у BotFather и узнать `chat_id`; токен задаётся `dotnet user-secrets set "Telegram:BotToken" "<token>"`.
+- [ ] **Шаг 4: запустить** тесты из шага 2. Ожидается: PASS.
+- [ ] **Шаг 5: закоммитить** `feat: Telegram-алерты и страница профиля`
 
 ---
 
-### Task 9: Docker, README и финальная проверка
+### Задача 9: Docker, README и финальная проверка
 
-**Files:**
-- Create: `Dockerfile`, `.dockerignore`, `docker-compose.yml`
-- Modify: `README.md`; `src/UptimeWatch.Web/Program.cs` (применение миграций при старте — если не сделано в Task 6)
+**Файлы:**
+- Создать: `Dockerfile`, `.dockerignore`, `docker-compose.yml`
+- Изменить: `README.md`; `src/UptimeWatch.Web/Program.cs` (применение миграций при старте — если не сделано в задаче 6)
 
-**Interfaces:**
-- Consumes: всё из задач 0–8.
-- Produces: `docker compose up --build` поднимает приложение на `http://localhost:8080` и PostgreSQL 17 с томом; переменные `ConnectionStrings__Default`, `Telegram__BotToken` берутся из окружения/`.env` (в репозитории только `.env.example`).
+**Интерфейсы:**
+- Использует: всё из задач 0–8.
+- Предоставляет: `docker compose up --build` поднимает приложение на `http://localhost:8080` и PostgreSQL 17 с томом; переменные `ConnectionStrings__Default`, `Telegram__BotToken` берутся из окружения/`.env` (в репозитории только `.env.example`).
 
-- [ ] **Step 1:** `Dockerfile` — multi-stage (`mcr.microsoft.com/dotnet/sdk:9.0` → `aspnet:9.0`), публикация `UptimeWatch.Web`. В `docker-compose.yml` сервис `db` с healthcheck `pg_isready`, сервис `web` с `depends_on: condition: service_healthy`.
-- [ ] **Step 2: Run** `docker compose up --build -d`, затем открыть `http://localhost:8080`. Expected: страница входа открывается, регистрация и добавление монитора работают, миграции применились автоматически.
-- [ ] **Step 3: Run** `dotnet test -c Release` в корне. Expected: все тесты PASS.
-- [ ] **Step 4:** Обновить `README.md`: бейдж CI, описание, быстрый старт (`docker compose up`), настройка Telegram, схема архитектуры (Mermaid), скриншоты дашборда, раздел «Решения и компромиссы» (монолит вместо двух процессов; порог в 3 проверки; защита от SSRF на уровне соединения; аренда монитора вместо блокировок), раздел «Что дальше» (публичная статус-страница, графики, SSL-срок, повторная отправка алертов). Убрать пометку «проект в стадии проектирования».
-- [ ] **Step 5: Commit и push**, убедиться, что CI на GitHub зелёный.
+- [ ] **Шаг 1:** `Dockerfile` — multi-stage (`mcr.microsoft.com/dotnet/sdk:9.0` → `aspnet:9.0`), публикация `UptimeWatch.Web`. В `docker-compose.yml` сервис `db` с healthcheck `pg_isready`, сервис `web` с `depends_on: condition: service_healthy`.
+- [ ] **Шаг 2: запустить** `docker compose up --build -d`, затем открыть `http://localhost:8080`. Ожидается: страница входа открывается, регистрация и добавление монитора работают, миграции применились автоматически.
+- [ ] **Шаг 3: запустить** `dotnet test -c Release` в корне. Ожидается: все тесты PASS.
+- [ ] **Шаг 4:** Обновить `README.md`: бейдж CI, описание, быстрый старт (`docker compose up`), настройка Telegram, схема архитектуры (Mermaid), скриншоты дашборда, раздел «Решения и компромиссы» (монолит вместо двух процессов; порог в 3 проверки; защита от SSRF на уровне соединения; аренда монитора вместо блокировок), раздел «Что дальше» (публичная статус-страница, графики, SSL-срок, повторная отправка алертов). Убрать пометку «проект в стадии проектирования».
+- [ ] **Шаг 5: закоммитить и запушить**, убедиться, что CI на GitHub зелёный.
 
 ```bash
-git add -A && git commit -m "feat: Docker Compose, README and release polish" && git push
+git add -A && git commit -m "feat: Docker Compose, README и финальная полировка" && git push
 ```
 
 ---
 
-## Self-Review (покрытие спецификации)
+## Самопроверка (покрытие спецификации)
 
 | Требование спецификации | Задача |
 |---|---|
