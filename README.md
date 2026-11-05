@@ -219,4 +219,4 @@ UptimeWatch/
 └─ .env.example
 ```
 
-Подробности и обоснования: [дизайн проекта](docs/superpowers/specs/2026-10-30-uptimewatch-design.md).
+Подробности и обоснования: [дизайн проекта](docs/design.md).
